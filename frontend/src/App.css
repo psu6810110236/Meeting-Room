@@ -40,3 +40,168 @@
 .read-the-docs {
   color: #888;
 }
+
+/* =========================================
+   🔵 Admin Dashboard Layout (Modern Dark Blue)
+   ========================================= */
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #334155; /* สีเทาเข้มอมน้ำเงิน */
+  background-color: #f1f5f9; /* พื้นหลังสีฟ้าเทาจางๆ ดูสะอาด */
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.dashboard-title {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #0f172a; /* สีกรมท่าเกือบดำ */
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+/* --- Card Styles --- */
+.dashboard-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.card-title {
+  border-bottom: 2px solid #3b82f6; /* ขีดเส้นใต้สีฟ้าสด */
+  padding-bottom: 15px;
+  margin-bottom: 25px;
+  font-size: 1.5rem;
+  color: #1e3a8a; /* หัวข้อสีกรมท่า */
+  font-weight: 700;
+}
+
+/* --- Table Styles --- */
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.custom-table th {
+  background-color: #1e3a8a; /* หัวตารางสีกรมท่าเข้ม */
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  padding: 16px;
+  text-align: left;
+  letter-spacing: 0.5px;
+}
+
+.custom-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.custom-table tr:last-child td {
+  border-bottom: none;
+}
+
+.custom-table tr:hover {
+  background-color: #f8fafc; /* เมาส์ชี้แล้วเป็นสีฟ้าจางมากๆ */
+}
+
+/* --- Status Badges --- */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 9999px; /* วงรีมน */
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
+
+.status-approved { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.status-rejected { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.status-pending { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+.status-cancelled { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* --- Forms --- */
+.room-form {
+  display: flex;
+  gap: 12px;
+  background: #eff6ff; /* พื้นหลังฟอร์มสีฟ้าอ่อนสุดๆ */
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  align-items: center;
+  border: 1px solid #bfdbfe;
+}
+
+.form-label-highlight {
+    color: #1e40af; /* สีน้ำเงินเข้มสำหรับ Label */
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.form-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 10px 16px;
+  border-radius: 8px;
+  outline: none;
+  flex: 1;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  border-color: #3b82f6; /* โฟกัสแล้วขอบสีฟ้า */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* --- Buttons --- */
+.btn {
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:active { transform: scale(0.97); }
+.btn:hover { opacity: 0.95; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+
+/* ปุ่มหลักสีน้ำเงินเข้มไล่สี */
+.btn-primary { 
+    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+    color: white; 
+} 
+
+.btn-success { background: #10b981; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-icon { padding: 6px 10px; font-size: 1.1rem; line-height: 1; }

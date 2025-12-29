@@ -50,6 +50,14 @@ export class BookingsService {
     return await this.bookingRepository.save(booking);
   }
 
+  // ✅ เพิ่มฟังก์ชันนี้: ดึงการจองทั้งหมด (พร้อมชื่อคนจองและชื่อห้อง)
+  async findAll() {
+    return await this.bookingRepository.find({
+      relations: ['user', 'room'], 
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async findMyBookings(userId: number) {
     return await this.bookingRepository.find({
       where: { user: { id: userId } },

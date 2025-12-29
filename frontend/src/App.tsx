@@ -1,10 +1,11 @@
-import React from 'react'; // ✅ บรรทัดนี้ต้องมี (ถูกแล้ว)
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Home from './Home';
+import AdminDashboard from './AdminDashboard'; // ✅ Import มา
+import AdminRoute from './AdminRoute';         // ✅ Import มา
 import './App.css';
 
-// 🔴 แก้ตรงนี้: เปลี่ยน JSX.Element เป็น React.ReactNode
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/login" />;
@@ -15,10 +16,19 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        
+        {/* หน้า User ทั่วไป */}
         <Route path="/" element={
           <PrivateRoute>
             <Home />
           </PrivateRoute>
+        } />
+
+        {/* ✅ หน้า Admin (เข้าได้เฉพาะ Admin) */}
+        <Route path="/admin" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
         } />
       </Routes>
     </BrowserRouter>
