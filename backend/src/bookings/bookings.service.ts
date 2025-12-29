@@ -28,7 +28,7 @@ export class BookingsService {
 
     const overlappingBooking = await this.bookingRepository
       .createQueryBuilder('booking')
-      .where('booking.room_id = :roomId', { roomId })
+      .where('booking.room = :roomId', { roomId }) 
       .andWhere('booking.status = :status', { status: BookingStatus.APPROVED }) 
       .andWhere('booking.start_time < :end', { end })
       .andWhere('booking.end_time > :start', { start })

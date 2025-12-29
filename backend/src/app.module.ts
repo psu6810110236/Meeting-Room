@@ -8,7 +8,8 @@ import { RoomFacility } from './entities/room-facility.entity';
 import { Booking } from './entities/booking.entity';
 import { RoomsModule } from './rooms/rooms.module';
 import { FacilitiesModule } from './facilities/facilities.module';
-import { BookingsModule } from './bookings/bookings.module';
+import { BookingsModule } from './bookings/bookings.module'; 
+import { AuthModule } from './auth/auth.module'; 
 
 @Module({
   imports: [
@@ -31,7 +32,8 @@ import { BookingsModule } from './bookings/bookings.module';
     
     FacilitiesModule,
     
-    BookingsModule,
+    BookingsModule, 
+    AuthModule,    
   ],
   controllers: [],
   providers: [],
