@@ -6,6 +6,8 @@ import { MeetingRoom } from './entities/meeting-room.entity';
 import { Facility } from './entities/facility.entity';
 import { RoomFacility } from './entities/room-facility.entity';
 import { Booking } from './entities/booking.entity';
+import { RoomsModule } from './rooms/rooms.module';
+import { FacilitiesModule } from './facilities/facilities.module';
 
 @Module({
   imports: [
@@ -23,6 +25,10 @@ import { Booking } from './entities/booking.entity';
       entities: [User, MeetingRoom, Facility, RoomFacility, Booking],
       synchronize: true,
     }),
+    
+    RoomsModule,
+    
+    FacilitiesModule,
   ],
   controllers: [],
   providers: [],
