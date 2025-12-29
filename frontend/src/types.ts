@@ -1,34 +1,14 @@
-// 1. เปลี่ยน Enum เป็น Const Object (เพื่อให้ผ่านกฎ erasableSyntaxOnly)
-export const UserRole = {
-  ADMIN: 'admin',
-  USER: 'user',
-} as const;
+// src/types.ts
 
-// สร้าง Type จาก Object ด้านบนเพื่อให้เอาไปใช้ประกาศตัวแปรได้
-export type UserRole = (typeof UserRole)[keyof typeof UserRole];
-
-export const BookingStatus = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-  CANCELLED: 'cancelled',
-} as const;
-
-export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus];
-
-
-// 2. Interfaces (ส่วนนี้เหมือนเดิม)
 export interface User {
   id: number;
   username: string;
-  role: UserRole; // ใช้ Type ที่เราสร้างด้านบน
-  created_at?: string;
+  role: string;
 }
 
 export interface Facility {
   id: number;
   name: string;
-  icon?: string;
 }
 
 export interface RoomFacility {
@@ -43,20 +23,16 @@ export interface MeetingRoom {
   capacity: number;
   location: string;
   is_active: boolean;
+  image_url?: string;
   room_facilities?: RoomFacility[];
 }
 
+// ✅ อัปเดตส่วนนี้
 export interface Booking {
   id: number;
   start_time: string;
   end_time: string;
   purpose: string;
-  status: BookingStatus; // ใช้ Type ที่เราสร้างด้านบน
-  user?: User;
-  room?: MeetingRoom;
-  created_at: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
+  status: 'pending' | 'confirmed' | 'cancelled'; // เพิ่ม Status ให้ชัดเจน
+  room?: MeetingRoom; // เพิ่มความสัมพันธ์กับห้อง
 }

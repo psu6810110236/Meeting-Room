@@ -1,61 +1,20 @@
-import React, { useState } from 'react'; // ✅ เพิ่ม React ตรงนี้
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import './App.css';
+// frontend/src/pages/Login.tsx
 
-function Login() {
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const navigate = useNavigate();
+// เปลี่ยนจาก import axios from 'axios' เป็น:
+import api from '../api/axios'; 
 
-  // ✅ ตรงนี้ต้องใช้ React.FormEvent ซึ่งต้องมี import ด้านบนก่อน
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); 
+// ... (ส่วนอื่นเหมือนเดิม)
+
+// ในฟังก์ชัน handleLogin แก้บรรทัดยิง API เป็น:
+const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3000/auth/login', {
-        username,
-        password
-      });
-
-      const token = response.data.accessToken;
-      localStorage.setItem('token', token);
+      // ✅ ไม่ต้องใส่ http://localhost:3000 และใช้ api ตัวกลาง
+      const response = await api.post('/auth/login', { username, password });
       
-      alert('Login สำเร็จ! 🎉');
-      
-      navigate('/'); 
-
-    } catch (error) {
-      console.error(error);
-      alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง! ❌');
+      localStorage.setItem('token', response.data.accessToken);
+      navigate('/'); // ล็อกอินผ่านให้ไปหน้าแรก
+    } catch (err) {
+      // ... จัดการ Error
     }
-  };
-
-  return (
-    <div className="card" style={{ maxWidth: '400px', margin: 'auto' }}>
-      <h2>🔐 เข้าสู่ระบบ</h2>
-      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="Username (เช่น user01)" 
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{ padding: '10px' }}
-          required
-        />
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: '10px' }}
-          required
-        />
-        <button type="submit" style={{ padding: '10px', cursor: 'pointer', backgroundColor: '#646cff', color: 'white' }}>
-          Login
-        </button>
-      </form>
-    </div>
-  );
-}
-
-export default Login;
+};
