@@ -1,13 +1,16 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn } from 'typeorm';
 import { User } from './user.entity';
 import { MeetingRoom } from './meeting-room.entity';
+import { BookingFacility } from '../bookings/entities/booking-facility.entity'; 
 
-// สร้าง Enum สำหรับ Status
+// src/entities/booking.entity.ts
+
 export enum BookingStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
   CANCELLED = 'cancelled',
+  COMPLETED = 'completed', // ✅ เพิ่มสถานะใหม่
 }
 
 @Entity()
@@ -15,8 +18,7 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id: number;
 
-
-  @Column()
+  @Column({ nullable: true })
   purpose: string; 
 
   @Column({ type: 'timestamp' })
@@ -24,7 +26,6 @@ export class Booking {
 
   @Column({ type: 'timestamp' })
   end_time: Date;
-
 
   @Column({
     type: 'enum',
@@ -41,4 +42,8 @@ export class Booking {
 
   @ManyToOne(() => MeetingRoom, (room) => room.bookings)
   room: MeetingRoom;
+
+  // ✅ เพิ่มบรรทัดนี้เพื่อเชื่อมความสัมพันธ์ให้ Service ใช้งานได้
+  @OneToMany(() => BookingFacility, (bf) => bf.booking)
+  booking_facilities: BookingFacility[]; 
 }

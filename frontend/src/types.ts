@@ -1,40 +1,13 @@
-// 1. เปลี่ยน Enum เป็น Const Object (เพื่อให้ผ่านกฎ erasableSyntaxOnly)
-export const UserRole = {
-  ADMIN: 'admin',
-  USER: 'user',
-} as const;
-
-// สร้าง Type จาก Object ด้านบนเพื่อให้เอาไปใช้ประกาศตัวแปรได้
-export type UserRole = (typeof UserRole)[keyof typeof UserRole];
-
-export const BookingStatus = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-  CANCELLED: 'cancelled',
-} as const;
-
-export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus];
-
-
-// 2. Interfaces (ส่วนนี้เหมือนเดิม)
 export interface User {
   id: number;
   username: string;
-  role: UserRole; // ใช้ Type ที่เราสร้างด้านบน
-  created_at?: string;
+  role: string;
 }
 
 export interface Facility {
   id: number;
   name: string;
-  icon?: string;
-}
-
-export interface RoomFacility {
-  id: number;
-  facility: Facility;
-  quantity: number;
+  total_stock: number;
 }
 
 export interface MeetingRoom {
@@ -43,7 +16,13 @@ export interface MeetingRoom {
   capacity: number;
   location: string;
   is_active: boolean;
-  room_facilities?: RoomFacility[];
+}
+
+// ✅ Interface สำหรับรายการอุปกรณ์ยืม
+export interface BookingFacility {
+  id: number;
+  quantity: number;
+  facility: Facility;
 }
 
 export interface Booking {
@@ -51,12 +30,10 @@ export interface Booking {
   start_time: string;
   end_time: string;
   purpose: string;
-  status: BookingStatus; // ใช้ Type ที่เราสร้างด้านบน
-  user?: User;
+  // ✅ แก้ไข: เพิ่ม 'completed' เข้าไปเพื่อให้ระบบรู้จักสถานะที่แอดมินยืนยันคืนของแล้ว
+  status: 'pending' | 'confirmed' | 'cancelled' | 'approved' | 'rejected' | 'completed'; 
   room?: MeetingRoom;
-  created_at: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
+  user?: User;
+  // ✅ ใช้ booking_facilities เพื่อรองรับข้อมูลจำนวนอุปกรณ์จาก Backend
+  booking_facilities?: BookingFacility[]; 
 }

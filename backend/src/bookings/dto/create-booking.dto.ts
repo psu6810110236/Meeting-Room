@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsInt, IsDateString, IsString } from 'class-validator';
+import { IsNotEmpty, IsInt, IsDateString, IsString, IsArray, IsOptional, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class BookingFacilityDto {
+  @IsInt()
+  facility_id: number;
+
+  @IsInt()
+  quantity: number; // ✅ รับจำนวนอุปกรณ์ที่ต้องการจอง
+}
 
 export class CreateBookingDto {
   @IsNotEmpty()
@@ -17,7 +26,13 @@ export class CreateBookingDto {
   @IsString()
   purpose: string;
   
-  @IsNotEmpty()
+  @IsOptional() 
   @IsInt()
-  userId: number; 
+  userId?: number; 
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookingFacilityDto)
+  facilities?: BookingFacilityDto[]; // ✅ เปลี่ยนจาก facilityIds เป็นรายการออบเจกต์
 }
