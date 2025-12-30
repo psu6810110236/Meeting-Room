@@ -18,18 +18,20 @@ export class RoomsService {
   }
 
   async findAll(isActive?: boolean, capacity?: number) {
-    const query = this.roomsRepository.createQueryBuilder('room');
+  const query = this.roomsRepository.createQueryBuilder('room')
+    .leftJoinAndSelect('room.room_facilities', 'rf') // ดึงความสัมพันธ์
+    .leftJoinAndSelect('rf.facility', 'facility');  // ดึงข้อมูลอุปกรณ์
 
-    if (isActive !== undefined) {
-      query.andWhere('room.is_active = :isActive', { isActive });
-    }
-
-    if (capacity) {
-      query.andWhere('room.capacity >= :capacity', { capacity });
-    }
-
-    return await query.getMany();
+  if (isActive !== undefined) {
+    query.andWhere('room.is_active = :isActive', { isActive });
   }
+
+  if (capacity) {
+    query.andWhere('room.capacity >= :capacity', { capacity });
+  }
+
+  return await query.getMany();
+}
 
   async findOne(id: number) {
     const room = await this.roomsRepository.findOne({ where: { id } });

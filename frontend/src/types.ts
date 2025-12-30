@@ -1,5 +1,3 @@
-// src/types.ts
-
 export interface User {
   id: number;
   username: string;
@@ -9,12 +7,7 @@ export interface User {
 export interface Facility {
   id: number;
   name: string;
-}
-
-export interface RoomFacility {
-  id: number;
-  facility: Facility;
-  quantity: number;
+  total_stock: number;
 }
 
 export interface MeetingRoom {
@@ -23,16 +16,24 @@ export interface MeetingRoom {
   capacity: number;
   location: string;
   is_active: boolean;
-  image_url?: string;
-  room_facilities?: RoomFacility[];
 }
 
-// ✅ อัปเดตส่วนนี้
+// ✅ Interface สำหรับรายการอุปกรณ์ยืม
+export interface BookingFacility {
+  id: number;
+  quantity: number;
+  facility: Facility;
+}
+
 export interface Booking {
   id: number;
   start_time: string;
   end_time: string;
   purpose: string;
-  status: 'pending' | 'confirmed' | 'cancelled'; // เพิ่ม Status ให้ชัดเจน
-  room?: MeetingRoom; // เพิ่มความสัมพันธ์กับห้อง
+  // ✅ แก้ไข: เพิ่ม 'completed' เข้าไปเพื่อให้ระบบรู้จักสถานะที่แอดมินยืนยันคืนของแล้ว
+  status: 'pending' | 'confirmed' | 'cancelled' | 'approved' | 'rejected' | 'completed'; 
+  room?: MeetingRoom;
+  user?: User;
+  // ✅ ใช้ booking_facilities เพื่อรองรับข้อมูลจำนวนอุปกรณ์จาก Backend
+  booking_facilities?: BookingFacility[]; 
 }

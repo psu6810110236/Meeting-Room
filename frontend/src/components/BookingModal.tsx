@@ -1,10 +1,8 @@
-import { useState } from 'react';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, Stack, Fade, CircularProgress
-} from '@mui/material';
-import { EventAvailable, AccessTime, Description } from '@mui/icons-material';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, Stack, IconButton } from '@mui/material';
+import { Add, Remove } from '@mui/icons-material';
 import api from '../api/axios';
-import type { MeetingRoom } from '../types';
+import type { MeetingRoom, Facility } from '../types';
 
 interface BookingModalProps {
   open: boolean;
@@ -17,104 +15,156 @@ const BookingModal = ({ open, handleClose, room, onSuccess }: BookingModalProps)
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (open) {
+      // ✅ แก้ไข: เพิ่ม Parameter Timestamp (?t=...) เพื่อป้องกัน Browser ดึงข้อมูลเก่าจาก Cache
+      // วิธีนี้จะทำให้ User เห็นสต็อกที่ Admin อัปเดตแล้วทันที
+      api.get(`/facilities?t=${new Date().getTime()}`)
+        .then(res => {
+          setFacilities(res.data);
+        })
+        .catch(err => {
+          console.error("Error fetching facilities:", err);
+        });
+
+      setSelectedQuantities({}); // Reset quantities on open
+    }
+  }, [open]);
+
+  const handleQuantityChange = (id: number, delta: number, maxStock: number) => {
+    setSelectedQuantities(prev => {
+      const currentQty = prev[id] || 0;
+      const newQty = currentQty + delta;
+      
+      // ✅ Limit check based on Admin Stock
+      if (newQty < 0 || newQty > maxStock) return prev;
+      
+      const newMap = { ...prev };
+      if (newQty === 0) delete newMap[id];
+      else newMap[id] = newQty;
+      return newMap;
+    });
+  };
 
   const handleSubmit = async () => {
-    if (!room || !startTime || !endTime) {
-      alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-      return;
-    }
+    const facilitiesToSend = Object.entries(selectedQuantities).map(([id, qty]) => ({
+      facility_id: Number(id),
+      quantity: qty
+    }));
 
-    setLoading(true);
     try {
-      // ✅ Handle Submit Logic
       await api.post('/bookings', {
-        roomId: room.id,
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString(),
+        roomId: room?.id,
+        startTime,
+        endTime,
         purpose,
+        facilities: facilitiesToSend 
       });
-      
-      // ✅ Show Success Message
-      alert(`🎉 จองห้อง "${room.name}" สำเร็จเรียบร้อย!`);
-      onSuccess(); // รีเฟรชข้อมูลห้อง
-      handleClose(); // ปิด Modal
-      
-      // Reset Form
-      setStartTime('');
-      setEndTime('');
-      setPurpose('');
+      alert('Booking Successful! ✅');
+      onSuccess(); // ✅ จะไปเรียก fetchData() ใน RoomList เพื่อรีเฟรชข้อมูลหน้าหลัก
+      handleClose();
     } catch (error: any) {
-      // ✅ Show Error Message
-      console.error(error);
-      alert('❌ จองไม่สำเร็จ: ช่วงเวลานี้อาจมีคนจองแล้ว หรือระบบขัดข้อง');
-    } finally {
-      setLoading(false);
+      alert(error.response?.data?.message || 'Unauthorized or Booking Failed');
     }
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      fullWidth 
-      maxWidth="sm"
-      TransitionComponent={Fade}
-      PaperProps={{ sx: { borderRadius: 3, boxShadow: 24 } }}
-    >
-      <Box sx={{ background: 'linear-gradient(135deg, #1e88e5 0%, #1565c0 100%)', color: 'white', p: 2 }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 'bold' }}>
-          <EventAvailable /> จองห้องประชุม: {room?.name}
-        </DialogTitle>
-      </Box>
-
-      <DialogContent sx={{ mt: 3 }}>
-        <Stack spacing={3}>
-          <Box sx={{ p: 2, bgcolor: '#f5f7fa', borderRadius: 2, border: '1px dashed #ccc' }}>
-            <Typography variant="body2" color="text.secondary">📍 สถานที่: {room?.location}</Typography>
-            <Typography variant="body2" color="text.secondary">👥 ความจุ: {room?.capacity} ท่าน</Typography>
-          </Box>
-
-          <TextField
-            label="เวลาเริ่มต้น"
-            type="datetime-local"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            InputProps={{ startAdornment: <AccessTime sx={{ mr: 1, color: 'action.active' }} /> }}
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+        Book Room: {room?.name}
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField 
+            label="Start Time" 
+            type="datetime-local" 
+            fullWidth 
+            InputLabelProps={{ shrink: true }} 
+            value={startTime} 
+            onChange={(e) => setStartTime(e.target.value)} 
           />
-          <TextField
-            label="เวลาสิ้นสุด"
-            type="datetime-local"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            InputProps={{ startAdornment: <AccessTime sx={{ mr: 1, color: 'action.active' }} /> }}
+          <TextField 
+            label="End Time" 
+            type="datetime-local" 
+            fullWidth 
+            InputLabelProps={{ shrink: true }} 
+            value={endTime} 
+            onChange={(e) => setEndTime(e.target.value)} 
           />
-          <TextField
-            label="จุดประสงค์การใช้งาน"
-            multiline
-            rows={3}
-            fullWidth
-            placeholder="เช่น ประชุม Weekly Team, นัดลูกค้า..."
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            InputProps={{ startAdornment: <Description sx={{ mr: 1, mt: 1, color: 'action.active', alignSelf: 'flex-start' }} /> }}
+          <TextField 
+            label="Purpose" 
+            fullWidth 
+            placeholder="เช่น ประชุมวางแผนงานโครงการ"
+            value={purpose} 
+            onChange={(e) => setPurpose(e.target.value)} 
           />
+          
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mt: 1 }}>
+            Select Equipment & Quantity
+          </Typography>
+          
+          {facilities.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" align="center">
+              ไม่มีอุปกรณ์ที่สามารถยืมได้ในขณะนี้
+            </Typography>
+          ) : (
+            facilities.map((fac) => {
+              const qty = selectedQuantities[fac.id] || 0;
+              return (
+                <Box key={fac.id} sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  p: 1.5, 
+                  border: '1px solid #e0e0e0', 
+                  borderRadius: 2,
+                  bgcolor: qty > 0 ? '#f0f7ff' : 'transparent',
+                  borderColor: qty > 0 ? '#1976d2' : '#e0e0e0'
+                }}>
+                  <Box>
+                    <Typography variant="body2" fontWeight="bold">{fac.name}</Typography>
+                    <Typography variant="caption" color={fac.total_stock > 0 ? "success.main" : "error.main"}>
+                      คงเหลือในระบบ: {fac.total_stock} ชิ้น
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleQuantityChange(fac.id, -1, fac.total_stock)} 
+                      disabled={qty === 0}
+                    >
+                      <Remove fontSize="small" />
+                    </IconButton>
+                    <Typography sx={{ fontWeight: 'bold', minWidth: '20px', textAlign: 'center' }}>
+                      {qty}
+                    </Typography>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleQuantityChange(fac.id, 1, fac.total_stock)} 
+                      disabled={qty >= fac.total_stock} 
+                      color="primary"
+                    >
+                      <Add fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              );
+            })
+          )}
         </Stack>
       </DialogContent>
-
-      <DialogActions sx={{ p: 3 }}>
-        <Button onClick={handleClose} color="inherit" disabled={loading}>ยกเลิก</Button>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={handleClose} color="inherit">Cancel</Button>
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
-          disabled={loading}
-          sx={{ px: 4, borderRadius: 2, bgcolor: '#1565c0', '&:hover': { bgcolor: '#0d47a1' } }}
+          disabled={!startTime || !endTime || !purpose}
+          sx={{ borderRadius: 2, px: 4 }}
         >
-          {loading ? <CircularProgress size={24} color="inherit" /> : 'ยืนยันการจอง'}
+          Confirm Booking
         </Button>
       </DialogActions>
     </Dialog>
