@@ -13,6 +13,7 @@ import {
   EventAvailable, LocationOn, Person, AdminPanelSettings,
   Inventory2, AccessTime 
 } from '@mui/icons-material';
+import Swal from 'sweetalert2'; // ✅ เพิ่ม import SweetAlert2
 import api from '../api/axios';
 import type { MeetingRoom, Booking } from '../types';
 import BookingModal from '../components/BookingModal';
@@ -56,11 +57,40 @@ const RoomList = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // ✅ แก้ไขฟังก์ชัน Logout เป็น SweetAlert2
   const handleLogout = () => {
-    if (confirm('ยืนยันการออกจากระบบ?')) {
-      localStorage.removeItem('token');
-      navigate('/login');
-    }
+    Swal.fire({
+      title: 'ออกจากระบบ?',
+      text: "คุณต้องการออกจากระบบใช่หรือไม่",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ออกจากระบบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d32f2f', // สีแดง
+      cancelButtonColor: '#3085d6', // สีฟ้า
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // ลบ Token
+        localStorage.removeItem('token');
+        
+        // แจ้งเตือนเล็กๆ (Toast) ก่อนดีดไป
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
+          timerProgressBar: true,
+        });
+        
+        Toast.fire({
+          icon: 'success',
+          title: 'ออกจากระบบเรียบร้อย'
+        });
+
+        // ไปหน้า Login
+        navigate('/login');
+      }
+    });
   };
 
   const renderDashboard = () => {
@@ -124,11 +154,11 @@ const RoomList = () => {
                   <CardContent sx={{ flexGrow: 1, p: 2 }}>
                     <Typography variant="h6" fontWeight="bold" noWrap>{room.name}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                       <LocationOn fontSize="inherit"/> {room.location}
+                        <LocationOn fontSize="inherit"/> {room.location}
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center">
-                       <Person fontSize="small" color="action" />
-                       <Typography variant="body2">{room.capacity} ที่นั่ง</Typography>
+                        <Person fontSize="small" color="action" />
+                        <Typography variant="body2">{room.capacity} ที่นั่ง</Typography>
                     </Stack>
                   </CardContent>
                   <Divider />
@@ -221,7 +251,6 @@ const RoomList = () => {
                   sx={{ 
                     fontWeight: 'bold', 
                     minWidth: '100px',
-                    // ✅ แก้ไข: ลบไอคอนสี่เหลี่ยมสีออกแล้ว ใช้เป็น String ธรรมดา
                     bgcolor: b.status === 'completed' ? '#e0f2fe' : undefined,
                     color: b.status === 'completed' ? '#0369a1' : undefined,
                     border: b.status === 'completed' ? '1px solid #bae6fd' : 'none'
@@ -241,6 +270,14 @@ const RoomList = () => {
   return (
     <Box sx={{ display: 'flex', bgcolor: '#f0f2f5', minHeight: '100vh' }}>
       <CssBaseline />
+      
+      {/* ✅ ป้องกันปัญหา Alert ซ่อนหลัง Sidebar/AppBar */}
+      <style>{`
+        .swal2-container {
+          z-index: 20000 !important;
+        }
+      `}</style>
+
       <AppBar position="absolute" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#1a2035' }}>
         <Toolbar sx={{ pr: '24px' }}>
           <IconButton edge="start" color="inherit" onClick={() => setOpen(!open)} sx={{ mr: 2 }}><MenuIcon /></IconButton>
