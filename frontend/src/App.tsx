@@ -3,9 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
 
 import Login from './pages/Login';      
+import Register from './pages/Register'; // ✅ 1. เพิ่ม Import
 import RoomList from './pages/RoomList'; 
-import AdminDashboard from './AdminDashboard'; // ✅ ไฟล์อยู่ที่ src/
-import AdminRoute from './AdminRoute'; // ✅ แก้ไข Path: อยู่ใน src/ ไม่ใช่ src/pages/
+import AdminDashboard from './AdminDashboard'; 
+import AdminRoute from './AdminRoute'; 
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
@@ -19,6 +20,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} /> {/* ✅ 2. เพิ่ม Route */}
+          
           <Route path="/" element={<PrivateRoute><RoomList /></PrivateRoute>} />
           <Route 
             path="/admin" 

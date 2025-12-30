@@ -241,7 +241,7 @@ const RoomList = () => {
   return (
     <Box sx={{ display: 'flex', bgcolor: '#f0f2f5', minHeight: '100vh' }}>
       <CssBaseline />
-      <AppBar position="absolute" open={open} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#1a2035' }}>
+      <AppBar position="absolute" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#1a2035' }}>
         <Toolbar sx={{ pr: '24px' }}>
           <IconButton edge="start" color="inherit" onClick={() => setOpen(!open)} sx={{ mr: 2 }}><MenuIcon /></IconButton>
           <Typography component="h1" variant="h6" color="inherit" noWrap sx={{ flexGrow: 1 }}>
