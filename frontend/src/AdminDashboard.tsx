@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from './api/axios'; 
 import './App.css';
+import Swal from 'sweetalert2'; // ✅ นำเข้า SweetAlert2
+
 // ดึง Type มาใช้เพื่อให้ตรงกับระบบ
 import type { Booking, Facility, MeetingRoom as Room } from './types';
 
@@ -12,6 +14,19 @@ function AdminDashboard() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [newRoom, setNewRoom] = useState({ name: '', capacity: 0, location: '' });
   const [newFacility, setNewFacility] = useState({ name: '', stock: 1 });
+
+  // --- Helper: Toast Notification (แจ้งเตือนมุมขวาบนแบบเร็วๆ) ---
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  });
 
   const fetchBookings = async () => {
     try {
@@ -39,35 +54,67 @@ function AdminDashboard() {
       await api.patch(`/bookings/${id}/status`, { status });
       fetchBookings();
       fetchFacilities(); 
-    } catch (error) { alert('ไม่สามารถอัปเดตสถานะได้!'); }
+      // ✅ ใช้ Toast แจ้งเตือนเล็กๆ มุมขวาบน
+      Toast.fire({
+        icon: 'success',
+        title: `อัปเดตสถานะเป็น ${status} เรียบร้อย`
+      });
+    } catch (error) { 
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้!', 'error'); 
+    }
   };
 
   /**
    * ✅ ฟังก์ชันสำหรับยืนยันการคืนของ (Manual Return)
-   * เมื่อกดแล้วสต็อกจะถูกบวกกลับเข้าสู่ระบบ
    */
   const handleConfirmReturn = async (id: number) => {
-    if (!confirm('ยืนยันว่าได้รับอุปกรณ์คืนครบถ้วนแล้ว? สต็อกจะถูกเพิ่มกลับเข้าสู่ระบบทันที')) return;
-    try {
-      await api.patch(`/bookings/${id}/return`);
-      alert('ยืนยันการคืนของสำเร็จ ✅');
-      fetchBookings();
-      fetchFacilities(); // รีเฟรชสต็อกที่แสดงด้านล่างด้วย
-    } catch (error) { 
-      console.error(error);
-      alert('เกิดข้อผิดพลาดในการคืนของ'); 
+    // ✅ เปลี่ยน confirm เป็น SweetAlert
+    const result = await Swal.fire({
+        title: 'ยืนยันการคืนของ?',
+        text: "อุปกรณ์จะถูกเพิ่มกลับเข้าสู่สต็อกทันที",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'ใช่, คืนของครบแล้ว',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            await api.patch(`/bookings/${id}/return`);
+            Swal.fire('สำเร็จ!', 'ยืนยันการคืนของเรียบร้อย ✅', 'success');
+            fetchBookings();
+            fetchFacilities(); 
+        } catch (error) { 
+            console.error(error);
+            Swal.fire('Error', 'เกิดข้อผิดพลาดในการคืนของ', 'error'); 
+        }
     }
   };
 
-  // ✅ ฟังก์ชันลบประวัติการจอง (เพิ่มใหม่)
+  // ✅ ฟังก์ชันลบประวัติการจอง
   const handleDeleteBooking = async (id: number) => {
-    if (!confirm('⚠️ ยืนยันที่จะลบประวัติการจองนี้? ข้อมูลจะหายไปถาวร!')) return;
-    try {
-      await api.delete(`/bookings/${id}`);
-      fetchBookings(); // รีโหลดข้อมูลใหม่หลังลบเสร็จ
-    } catch (error) {
-      alert('ลบรายการไม่สำเร็จ (ตรวจสอบว่า Backend มี API Delete หรือยัง)');
-      console.error(error);
+    const result = await Swal.fire({
+        title: 'คุณแน่ใจไหม?',
+        text: "ประวัติการจองนี้จะถูกลบถาวรและกู้คืนไม่ได้!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33', // สีแดงสำหรับปุ่มลบ
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'ลบข้อมูล',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            await api.delete(`/bookings/${id}`);
+            fetchBookings(); 
+            Swal.fire('ลบเสร็จสิ้น!', 'รายการจองถูกลบเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            Swal.fire('ลบไม่สำเร็จ', 'ตรวจสอบ Backend API', 'error');
+            console.error(error);
+        }
     }
   };
 
@@ -77,16 +124,29 @@ function AdminDashboard() {
       await api.post('/rooms', { ...newRoom, capacity: Number(newRoom.capacity), is_active: true });
       setNewRoom({ name: '', capacity: 0, location: '' });
       fetchRooms();
-      alert('สร้างห้องสำเร็จ ✅');
-    } catch (error) { alert('สร้างห้องไม่สำเร็จ'); }
+      Swal.fire('สำเร็จ!', 'สร้างห้องประชุมใหม่เรียบร้อย ✅', 'success');
+    } catch (error) { 
+        Swal.fire('ล้มเหลว', 'สร้างห้องไม่สำเร็จ กรุณาลองใหม่', 'error'); 
+    }
   };
 
   const handleDeleteRoom = async (id: number) => {
-    if (!confirm('ยืนยันลบห้องนี้?')) return;
-    try {
-      await api.delete(`/rooms/${id}`);
-      fetchRooms();
-    } catch (error) { alert('ลบห้องไม่สำเร็จ'); }
+    const result = await Swal.fire({
+        title: 'ยืนยันลบห้องนี้?',
+        text: "การลบจะไม่สามารถกู้คืนได้",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ลบห้อง'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            await api.delete(`/rooms/${id}`);
+            fetchRooms();
+            Toast.fire({ icon: 'success', title: 'ลบห้องเรียบร้อยแล้ว' });
+        } catch (error) { Swal.fire('Error', 'ลบห้องไม่สำเร็จ', 'error'); }
+    }
   };
 
   const handleCreateFacility = async (e: React.FormEvent) => {
@@ -98,16 +158,34 @@ function AdminDashboard() {
       });
       setNewFacility({ name: '', stock: 1 }); 
       fetchFacilities();
-      alert('เพิ่มอุปกรณ์และตั้งค่าสต็อกสำเร็จ! 🛠️');
-    } catch (error) { alert('เพิ่มอุปกรณ์ไม่สำเร็จ'); }
+      Swal.fire({
+        position: 'center',
+        icon: 'success',
+        title: 'เพิ่มอุปกรณ์สำเร็จ!',
+        text: 'ตั้งค่าสต็อกเรียบร้อย 🛠️',
+        showConfirmButton: false,
+        timer: 1500
+      });
+    } catch (error) { Swal.fire('Error', 'เพิ่มอุปกรณ์ไม่สำเร็จ', 'error'); }
   };
 
   const handleDeleteFacility = async (id: number) => {
-    if (!confirm('ยืนยันลบอุปกรณ์นี้?')) return;
-    try {
-      await api.delete(`/facilities/${id}`);
-      fetchFacilities();
-    } catch (error) { alert('ลบอุปกรณ์ไม่สำเร็จ'); }
+    const result = await Swal.fire({
+        title: 'ลบอุปกรณ์?',
+        text: "คุณต้องการลบอุปกรณ์นี้ออกจากระบบหรือไม่",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ใช่, ลบเลย'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            await api.delete(`/facilities/${id}`);
+            fetchFacilities();
+            Toast.fire({ icon: 'success', title: 'ลบอุปกรณ์เรียบร้อย' });
+        } catch (error) { Swal.fire('Error', 'ลบอุปกรณ์ไม่สำเร็จ', 'error'); }
+    }
   };
 
   useEffect(() => {
@@ -168,7 +246,6 @@ function AdminDashboard() {
                   <td><span className={`status-badge status-${b.status}`}>{b.status}</span></td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      {/* ส่วนจัดการการจองที่รออนุมัติ */}
                       {b.status === 'pending' && (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button onClick={() => updateBookingStatus(b.id, 'approved')} className="btn btn-success btn-icon" title="อนุมัติ">✓</button>
@@ -176,7 +253,6 @@ function AdminDashboard() {
                         </div>
                       )}
 
-                      {/* ✅ ส่วนการยืนยันคืนของ: แสดงเฉพาะรายการที่อนุมัติแล้ว (approved) */}
                       {b.status === 'approved' && (
                         <button 
                           onClick={() => handleConfirmReturn(b.id)} 
@@ -193,7 +269,6 @@ function AdminDashboard() {
                         </button>
                       )}
                       
-                      {/* ✅ ปุ่มลบประวัติการจอง (เพิ่มใหม่) */}
                       <button 
                         onClick={() => handleDeleteBooking(b.id)} 
                         className="btn btn-danger btn-icon" 
