@@ -59,6 +59,18 @@ function AdminDashboard() {
     }
   };
 
+  // ✅ ฟังก์ชันลบประวัติการจอง (เพิ่มใหม่)
+  const handleDeleteBooking = async (id: number) => {
+    if (!confirm('⚠️ ยืนยันที่จะลบประวัติการจองนี้? ข้อมูลจะหายไปถาวร!')) return;
+    try {
+      await api.delete(`/bookings/${id}`);
+      fetchBookings(); // รีโหลดข้อมูลใหม่หลังลบเสร็จ
+    } catch (error) {
+      alert('ลบรายการไม่สำเร็จ (ตรวจสอบว่า Backend มี API Delete หรือยัง)');
+      console.error(error);
+    }
+  };
+
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -155,30 +167,42 @@ function AdminDashboard() {
                   </td>
                   <td><span className={`status-badge status-${b.status}`}>{b.status}</span></td>
                   <td>
-                    {/* ส่วนจัดการการจองที่รออนุมัติ */}
-                    {b.status === 'pending' && (
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => updateBookingStatus(b.id, 'approved')} className="btn btn-success btn-icon">✓</button>
-                        <button onClick={() => updateBookingStatus(b.id, 'rejected')} className="btn btn-danger btn-icon">✕</button>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {/* ส่วนจัดการการจองที่รออนุมัติ */}
+                      {b.status === 'pending' && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => updateBookingStatus(b.id, 'approved')} className="btn btn-success btn-icon" title="อนุมัติ">✓</button>
+                          <button onClick={() => updateBookingStatus(b.id, 'rejected')} className="btn btn-danger btn-icon" title="ปฏิเสธ">✕</button>
+                        </div>
+                      )}
 
-                    {/* ✅ ส่วนการยืนยันคืนของ: แสดงเฉพาะรายการที่อนุมัติแล้ว (approved) */}
-                    {b.status === 'approved' && (
+                      {/* ✅ ส่วนการยืนยันคืนของ: แสดงเฉพาะรายการที่อนุมัติแล้ว (approved) */}
+                      {b.status === 'approved' && (
+                        <button 
+                          onClick={() => handleConfirmReturn(b.id)} 
+                          className="btn btn-primary" 
+                          style={{ 
+                            padding: '6px 10px', 
+                            fontSize: '0.8rem',
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            border: 'none',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          📦 ยืนยันคืนของ
+                        </button>
+                      )}
+                      
+                      {/* ✅ ปุ่มลบประวัติการจอง (เพิ่มใหม่) */}
                       <button 
-                        onClick={() => handleConfirmReturn(b.id)} 
-                        className="btn btn-primary" 
-                        style={{ 
-                          padding: '8px 12px', 
-                          fontSize: '0.8rem',
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          border: 'none',
-                          whiteSpace: 'nowrap'
-                        }}
+                        onClick={() => handleDeleteBooking(b.id)} 
+                        className="btn btn-danger btn-icon" 
+                        style={{ alignSelf: 'flex-start', padding: '6px 10px' }}
+                        title="ลบประวัตินี้ถาวร"
                       >
-                        📦 ยืนยันคืนของ
+                        🗑️ ลบ
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}

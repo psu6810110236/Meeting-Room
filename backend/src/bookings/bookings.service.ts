@@ -9,6 +9,15 @@ import { Repository, DataSource } from 'typeorm';
 
 @Injectable()
 export class BookingsService {
+
+  async remove(id: number) {
+  const booking = await this.bookingRepository.findOne({ where: { id } });
+  if (!booking) {
+    throw new NotFoundException(`ไม่พบรายการจอง #${id}`);
+  }
+  return await this.bookingRepository.remove(booking);
+  }
+
   constructor(
     @InjectRepository(Booking)
     private bookingRepository: Repository<Booking>,

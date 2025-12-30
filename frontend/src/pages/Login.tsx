@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { 
   Box, Button, TextField, Typography, Paper, Alert, Avatar, 
-  Checkbox, FormControlLabel, Link, Fade, CssBaseline, CircularProgress 
+   Link, Fade, CssBaseline, CircularProgress 
 } from '@mui/material';
-import { LockOutlined, MeetingRoom } from '@mui/icons-material';
+import { MeetingRoom } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -140,7 +140,7 @@ const Login = () => {
       
       {/* Footer เล็กๆ ด้านล่าง */}
       <Box sx={{ position: 'absolute', bottom: 20, color: 'rgba(255,255,255,0.7)' }}>
-        <Typography variant="caption">© 2024 Your Company. All rights reserved.</Typography>
+        <Typography variant="caption">© 2025 4B Company. All rights reserved.</Typography>
       </Box>
 
     </Box>
