@@ -16,9 +16,9 @@ export interface MeetingRoom {
   capacity: number;
   location: string;
   is_active: boolean;
+  image_url?: string; // ✅ เพิ่มบรรทัดนี้ เพื่อแก้ Error เส้นแดงในหน้า RoomList
 }
 
-// ✅ Interface สำหรับรายการอุปกรณ์ยืม
 export interface BookingFacility {
   id: number;
   quantity: number;
@@ -30,10 +30,8 @@ export interface Booking {
   start_time: string;
   end_time: string;
   purpose: string;
-  // ✅ แก้ไข: เพิ่ม 'completed' เข้าไปเพื่อให้ระบบรู้จักสถานะที่แอดมินยืนยันคืนของแล้ว
   status: 'pending' | 'confirmed' | 'cancelled' | 'approved' | 'rejected' | 'completed'; 
   room?: MeetingRoom;
   user?: User;
-  // ✅ ใช้ booking_facilities เพื่อรองรับข้อมูลจำนวนอุปกรณ์จาก Backend
   booking_facilities?: BookingFacility[]; 
 }

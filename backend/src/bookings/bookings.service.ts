@@ -9,6 +9,7 @@ import { Repository, DataSource } from 'typeorm';
 
 @Injectable()
 export class BookingsService {
+
   constructor(
     @InjectRepository(Booking)
     private bookingRepository: Repository<Booking>,
@@ -188,5 +189,11 @@ export class BookingsService {
       relations: ['room', 'booking_facilities', 'booking_facilities.facility'],
       order: { created_at: 'DESC' },
     });
+  }
+
+  async remove(id: number) {
+    const booking = await this.bookingRepository.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return await this.bookingRepository.remove(booking);
   }
 }

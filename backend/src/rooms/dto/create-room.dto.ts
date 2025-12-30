@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsInt, IsOptional, IsBoolean, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsInt, IsOptional, IsBoolean, Min, IsUrl } from 'class-validator';
 
 export class CreateRoomDto {
   @IsNotEmpty()
@@ -13,6 +13,10 @@ export class CreateRoomDto {
   @IsNotEmpty()
   @IsString()
   location: string;
+
+  @IsOptional()
+  @IsString()
+  image_url?: string; // ✅ เพิ่มบรรทัดนี้
 
   @IsOptional()
   @IsBoolean()
