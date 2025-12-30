@@ -17,6 +17,16 @@ export class User {
   @Column()
   password: string;
 
+  // ✅ เพิ่ม 3 คอลัมน์นี้
+  @Column({ nullable: true })
+  first_name: string;
+
+  @Column({ nullable: true })
+  last_name: string;
+
+  @Column({ nullable: true })
+  profile_picture: string; // เก็บ URL ของรูปภาพ
+
   @Column({
     type: 'enum',
     enum: UserRole,

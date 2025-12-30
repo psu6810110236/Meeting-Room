@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common'; 
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingStatus } from '../entities/booking.entity';
@@ -12,19 +12,9 @@ import { UserRole } from '../entities/user.entity';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN) // ✅ เฉพาะ Admin ถึงจะลบได้
-  remove(@Param('id') id: string) {
-    return this.bookingsService.remove(+id);
-  }
-
-
-  // ✅ เพิ่ม UseGuards เพื่อดึง User จาก Token
   @Post()
   @UseGuards(JwtAuthGuard) 
   create(@Body() createBookingDto: CreateBookingDto, @Request() req) {
-    // req.user มาจาก JwtStrategy ที่แกะ Token ให้แล้ว
     return this.bookingsService.create(createBookingDto, req.user.userId);
   }
 
@@ -43,16 +33,22 @@ export class BookingsController {
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: BookingStatus,
-  ) {
+  updateStatus(@Param('id') id: string, @Body('status') status: BookingStatus) {
     return this.bookingsService.updateStatus(+id, status);
   }
+
   @Patch(':id/return')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN) // เฉพาะ Admin เท่านั้นที่กดรับของคืนได้
+  @Roles(UserRole.ADMIN) 
   confirmReturn(@Param('id') id: string) {
     return this.bookingsService.confirmReturn(+id);
+  }
+
+  // ✅ เพิ่ม API Delete
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.bookingsService.remove(+id);
   }
 }

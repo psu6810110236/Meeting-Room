@@ -3,14 +3,12 @@ import { User } from './user.entity';
 import { MeetingRoom } from './meeting-room.entity';
 import { BookingFacility } from '../bookings/entities/booking-facility.entity'; 
 
-// src/entities/booking.entity.ts
-
 export enum BookingStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
   CANCELLED = 'cancelled',
-  COMPLETED = 'completed', // ✅ เพิ่มสถานะใหม่
+  COMPLETED = 'completed',
 }
 
 @Entity()
@@ -43,7 +41,10 @@ export class Booking {
   @ManyToOne(() => MeetingRoom, (room) => room.bookings)
   room: MeetingRoom;
 
-  // ✅ เพิ่มบรรทัดนี้เพื่อเชื่อมความสัมพันธ์ให้ Service ใช้งานได้
-  @OneToMany(() => BookingFacility, (bf) => bf.booking)
+  // ✅ รวมเหลืออันเดียว และใส่ Option ให้ถูกต้อง
+  @OneToMany(() => BookingFacility, (bf) => bf.booking, { 
+    cascade: true, 
+    onDelete: 'CASCADE' 
+  })
   booking_facilities: BookingFacility[]; 
 }
