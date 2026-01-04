@@ -5,7 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../entities/booking.entity';
 import { MeetingRoom } from '../entities/meeting-room.entity'; 
 import { Facility } from '../entities/facility.entity';
-import { BookingFacility } from './entities/booking-facility.entity'; // ✅ เพิ่มสิ่งนี้
+import { BookingFacility } from './entities/booking-facility.entity';
+import { NotificationsModule } from '../notifications/notifications.module'; // ✅ Import
 
 @Module({
   imports: [
@@ -13,8 +14,9 @@ import { BookingFacility } from './entities/booking-facility.entity'; // ✅ เ
       Booking, 
       MeetingRoom, 
       Facility, 
-      BookingFacility // ✅ เพิ่มตัวนี้เข้าไปในอาเรย์
-    ])
+      BookingFacility
+    ]),
+    NotificationsModule // ✅ Add
   ],
   controllers: [BookingsController],
   providers: [BookingsService],

@@ -2,6 +2,9 @@ export interface User {
   id: number;
   username: string;
   role: string;
+  first_name?: string; // ✅ เพิ่มเผื่อไว้
+  last_name?: string;  // ✅ เพิ่มเผื่อไว้
+  profile_picture?: string; // ✅ เพิ่มเผื่อไว้
 }
 
 export interface Facility {
@@ -16,7 +19,7 @@ export interface MeetingRoom {
   capacity: number;
   location: string;
   is_active: boolean;
-  image_url?: string; // ✅ เพิ่มบรรทัดนี้ เพื่อแก้ Error เส้นแดงในหน้า RoomList
+  image_url?: string;
 }
 
 export interface BookingFacility {
@@ -33,5 +36,6 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled' | 'approved' | 'rejected' | 'completed'; 
   room?: MeetingRoom;
   user?: User;
-  booking_facilities?: BookingFacility[]; 
+  booking_facilities?: BookingFacility[];
+  created_at: string; // ✅ เพิ่มบรรทัดนี้ เพื่อแก้ Error ใน AdminDashboard
 }

@@ -16,6 +16,9 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ default: false })
+  reminder_sent: boolean;
+
   @Column({ nullable: true })
   purpose: string; 
 

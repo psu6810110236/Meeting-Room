@@ -7,7 +7,8 @@ import {
   Button, Card, CardContent, TextField, 
   MenuItem, Select, FormControl, CircularProgress, 
   Stack, Avatar, Menu, Tooltip, Chip, Tab, Tabs,
-  Fade, Grow, Dialog, DialogTitle, DialogContent, DialogActions
+  Fade, Grow, Dialog, DialogTitle, DialogContent, DialogActions,
+  OutlinedInput, InputLabel, Checkbox
 } from '@mui/material';
 import {
   Menu as MenuIcon, Dashboard, History, Logout, 
@@ -26,12 +27,12 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import api from '../api/axios';
 import type { MeetingRoom, Booking } from '../types';
 import BookingModal from '../components/BookingModal';
+import NotificationBell from '../components/NotificationBell';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 const drawerWidth = 280;
 
-// ✅ 1. Status Mapping (English)
 const statusMap: Record<string, string> = {
   pending: 'Pending',
   approved: 'Approved',
@@ -78,6 +79,8 @@ const RoomList = () => {
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [calendarRoomFilter, setCalendarRoomFilter] = useState<number[]>([]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -104,23 +107,31 @@ const RoomList = () => {
         const resRooms = await api.get('/rooms?active=true');
         setRooms(resRooms.data);
       } catch (e) {}
+      
       try {
         let bookingsForCalendar: Booking[] = [];
-        if (userRole === 'admin') {
-            const resAll = await api.get('/bookings');
+        // ขอ limit เยอะๆ สำหรับปฏิทิน
+        const resAll = await api.get('/bookings?limit=1000');
+        
+        if (resAll.data && Array.isArray(resAll.data.data)) {
+            bookingsForCalendar = resAll.data.data;
+        } else if (Array.isArray(resAll.data)) {
             bookingsForCalendar = resAll.data;
-        } else {
-            const resMy = await api.get(`/bookings/my-history?userId=${userId}`);
-            bookingsForCalendar = resMy.data;
         }
-        const events = bookingsForCalendar.filter(b => b.status === 'approved' || b.status === 'pending' || b.status === 'completed').map(b => ({
-                title: `${b.room?.name} (${statusMap[b.status] || b.status})`, 
+
+        const events = bookingsForCalendar
+            // ✅ แก้ไขตรงนี้: เอา 'completed' ออกจากรายการที่จะแสดงบนปฏิทิน
+            .filter(b => ['approved', 'pending'].includes(b.status))
+            .map(b => ({
+                title: `${b.room?.name} - ${b.user?.first_name || 'User'} (${statusMap[b.status] || b.status})`, 
                 start: new Date(b.start_time), 
                 end: new Date(b.end_time), 
-                resource: b.status
+                resource: b.status,
+                roomId: b.room?.id
             }));
         setCalendarEvents(events);
-      } catch (e) {}
+      } catch (e) { console.error("Calendar fetch error:", e); }
+
     } catch (err) {} finally { setLoading(false); }
   };
 
@@ -162,6 +173,11 @@ const RoomList = () => {
 
   const handleUpdateProfile = async () => {
     try { await api.patch('/auth/profile', editForm); Swal.fire('Success!', 'Profile updated successfully.', 'success'); setEditProfileOpen(false); fetchData(); } catch (error) { Swal.fire('Error!', 'Failed to update profile.', 'error'); }
+  };
+
+  const getVisibleCalendarEvents = () => {
+    if (calendarRoomFilter.length === 0) return calendarEvents; 
+    return calendarEvents.filter(event => calendarRoomFilter.includes(event.roomId));
   };
 
   const renderRoomGrid = () => {
@@ -292,18 +308,50 @@ const RoomList = () => {
           </Box>
        </Paper>
 
-       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
+       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Tabs value={dashboardTab} onChange={(_, v) => setDashboardTab(v)} textColor="primary" indicatorColor="primary">
              <Tab icon={<GridView />} label="Room List" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
              <Tab icon={<CalendarMonth />} label="Booking Calendar" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
           </Tabs>
+
+          {/* Filter Dropdown for Calendar */}
+          {dashboardTab === 1 && (
+             <FormControl sx={{ minWidth: 250, mr: 2 }} size="small">
+                <InputLabel id="calendar-room-filter-label">Filter by Rooms</InputLabel>
+                <Select
+                  labelId="calendar-room-filter-label"
+                  multiple
+                  value={calendarRoomFilter}
+                  onChange={(e) => {
+                    const { value } = e.target;
+                    setCalendarRoomFilter(typeof value === 'string' ? value.split(',').map(Number) : value as number[]);
+                  }}
+                  input={<OutlinedInput label="Filter by Rooms" />}
+                  renderValue={(selected) => {
+                      if (selected.length === 0) return "All Rooms";
+                      return rooms.filter(r => selected.includes(r.id)).map(r => r.name).join(', ');
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+                >
+                  <MenuItem disabled value="">
+                    <em>Select Rooms to View</em>
+                  </MenuItem>
+                  {rooms.map((room) => (
+                    <MenuItem key={room.id} value={room.id}>
+                      <Checkbox checked={calendarRoomFilter.indexOf(room.id) > -1} />
+                      <ListItemText primary={room.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+             </FormControl>
+          )}
        </Box>
 
        {dashboardTab === 0 ? renderRoomGrid() : (
          <Paper sx={{ p: 3, borderRadius: 4, height: 650, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
             <Calendar 
                 localizer={localizer} 
-                events={calendarEvents} 
+                events={getVisibleCalendarEvents()} 
                 startAccessor="start" 
                 endAccessor="end" 
                 style={{ height: '100%', fontFamily: 'Inter' }} 
@@ -332,7 +380,9 @@ const RoomList = () => {
 
           {isAdmin && <Button variant="outlined" color="primary" startIcon={<AdminPanelSettings />} onClick={() => navigate('/admin')} sx={{ mr: 2, borderRadius: 2, textTransform: 'none', border: '2px solid' }}>Admin Console</Button>}
           
-          <Box sx={{ flexGrow: 0 }}>
+          <NotificationBell />
+
+          <Box sx={{ flexGrow: 0, ml: 1 }}>
             <Tooltip title="Account settings">
               <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0.5, border: '2px solid #e2e8f0', borderRadius: '50%' }}>
                 <Avatar src={userProfile?.profile_picture} sx={{ width: 40, height: 40 }}>{userProfile?.first_name?.[0]}</Avatar>
