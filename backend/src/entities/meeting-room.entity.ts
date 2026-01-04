@@ -16,7 +16,7 @@ export class MeetingRoom {
   @Column()
   location: string;
 
-  @Column({ nullable: true }) // ✅ เพิ่ม Column นี้ใน DB
+  @Column({ nullable: true }) 
   image_url: string;
 
   @Column({ default: true })
