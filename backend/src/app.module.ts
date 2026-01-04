@@ -13,6 +13,7 @@ import { RoomFacility } from './entities/room-facility.entity';
 import { Booking } from './entities/booking.entity';
 import { BookingFacility } from './bookings/entities/booking-facility.entity';
 import { Notification } from './notifications/entities/notification.entity';
+import { ChatMessage } from './chat/entities/chat-message.entity'; // ✅ 1. เพิ่ม Import นี้
 
 // Modules
 import { RoomsModule } from './rooms/rooms.module';
@@ -20,6 +21,7 @@ import { FacilitiesModule } from './facilities/facilities.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -28,7 +30,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     ScheduleModule.forRoot(),
     
-    // ✅ Rate Limit: 100 requests / 60 วินาที
+    // Rate Limit: 100 requests / 60 วินาที
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 100,
@@ -41,7 +43,17 @@ import { NotificationsModule } from './notifications/notifications.module';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'meeting_room',
-      entities: [User, MeetingRoom, Facility, RoomFacility, Booking, BookingFacility, Notification],
+      // ✅ 2. เพิ่ม ChatMessage เข้าไปใน list นี้ด้วย ไม่งั้นตารางไม่ขึ้น
+      entities: [
+        User, 
+        MeetingRoom, 
+        Facility, 
+        RoomFacility, 
+        Booking, 
+        BookingFacility, 
+        Notification, 
+        ChatMessage 
+      ],
       synchronize: true, // ระวังใน Production
     }),
 
@@ -50,6 +62,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     BookingsModule,
     AuthModule,
     NotificationsModule,
+    ChatModule,
   ],
   providers: [
     {
