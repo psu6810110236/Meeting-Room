@@ -20,29 +20,29 @@ const Register = () => {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('รหัสผ่านไม่ตรงกัน');
+      setError('Passwords do not match');
       return;
     }
     if (password.length < 6) {
-      setError('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+      setError('Password must be at least 6 characters long');
       return;
     }
 
     setLoading(true);
     try {
-      // ส่ง role: 'user' ไปด้วยตามที่ Backend ต้องการ
+      // Send role: 'user' as per Backend requirement
       await api.post('/auth/register', { 
         username, 
         password, 
         role: 'user' 
       });
       
-      alert('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
+      alert('Registration successful! Please login.');
       navigate('/login');
     } catch (err: any) {
       console.error(err);
-      // แสดง Error จาก Backend ถ้ามี (เช่น Username ซ้ำ)
-      const msg = err.response?.data?.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก';
+      // Display error from Backend (e.g., Username already exists)
+      const msg = err.response?.data?.message || 'Registration failed';
       setError(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setLoading(false);
@@ -58,10 +58,12 @@ const Register = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        // Background Image consistent with Login page
         backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7)), url(https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80)',
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
       }}
     >
       <CssBaseline />
@@ -77,8 +79,10 @@ const Register = () => {
             borderRadius: 4,
             maxWidth: 450,
             width: '90%',
+            // Glassmorphism Effect
             backgroundColor: 'rgba(255, 255, 255, 0.85)', 
             backdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
           }}
         >
           <Avatar sx={{ m: 1, bgcolor: '#2e7d32', width: 60, height: 60, boxShadow: 3 }}>
@@ -89,7 +93,7 @@ const Register = () => {
             Register
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            สมัครสมาชิกเพื่อจองห้องประชุม
+            Create an account to start booking
           </Typography>
 
           {error && (
@@ -103,7 +107,7 @@ const Register = () => {
               margin="normal"
               required
               fullWidth
-              label="ชื่อผู้ใช้ (Username)"
+              label="Username"
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -113,7 +117,7 @@ const Register = () => {
               margin="normal"
               required
               fullWidth
-              label="รหัสผ่าน (Password)"
+              label="Password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -123,7 +127,7 @@ const Register = () => {
               margin="normal"
               required
               fullWidth
-              label="ยืนยันรหัสผ่าน (Confirm Password)"
+              label="Confirm Password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -142,22 +146,29 @@ const Register = () => {
                 boxShadow: '0 3px 5px 2px rgba(67, 160, 71, .3)',
               }}
             >
-              {loading ? <CircularProgress size={26} color="inherit" /> : 'สมัครสมาชิก'}
+              {loading ? <CircularProgress size={26} color="inherit" /> : 'Sign Up'}
             </Button>
 
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
               <Link 
                 component="button" 
                 variant="body2" 
+                type="button"
                 onClick={() => navigate('/login')}
                 sx={{ textDecoration: 'none', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
+                Already have an account? Login
               </Link>
             </Box>
           </Box>
         </Paper>
       </Fade>
+      
+      {/* Footer */}
+      <Box sx={{ position: 'absolute', bottom: 20, color: 'rgba(255,255,255,0.7)' }}>
+        <Typography variant="caption">© 2025 4B Company. All rights reserved.</Typography>
+      </Box>
+
     </Box>
   );
 };

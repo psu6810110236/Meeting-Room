@@ -13,8 +13,8 @@ import {
 } from '@mui/material';
 import { 
   ArrowBack, MeetingRoom, Inventory, 
-  EventNote, AddCircle, Assessment, Construction, Delete, 
-  CheckCircle, Cancel, Reply, Image, Search, Dashboard as DashboardIcon
+  EventNote, AddCircle, Assessment, Delete, 
+  CheckCircle, Cancel, Reply, Image, Dashboard as DashboardIcon, AccessTime
 } from '@mui/icons-material';
 
 // Charts
@@ -95,20 +95,20 @@ function AdminDashboard() {
   };
 
   const handleDeleteBooking = async (id: number) => {
-    Swal.fire({ title: 'ลบประวัติ?', text: "ข้อมูลจะหายไปถาวร!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => {
+    Swal.fire({ title: 'Delete History?', text: "Data will be lost permanently!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => {
         if(r.isConfirmed) {
-           try { await api.delete(`/bookings/${id}`); fetchData(); Swal.fire('ลบแล้ว','','success'); } 
-           catch (e) { Swal.fire('Error','ลบไม่ได้ อาจติด Foreign Key','error'); }
+           try { await api.delete(`/bookings/${id}`); fetchData(); Swal.fire('Deleted','','success'); } 
+           catch (e) { Swal.fire('Error','Cannot delete, data might be referenced.','error'); }
         }
     });
   };
 
   const updateBookingStatus = async (id: number, status: string) => {
-    try { await api.patch(`/bookings/${id}/status`, { status }); fetchData(); } catch(e) { Swal.fire('Error','Failed','error'); }
+    try { await api.patch(`/bookings/${id}/status`, { status }); fetchData(); } catch(e) { Swal.fire('Error','Failed to update status','error'); }
   };
 
   const handleReturn = async (id: number) => {
-    try { await api.patch(`/bookings/${id}/return`); fetchData(); Swal.fire('คืนของสำเร็จ','','success'); } catch(e) { Swal.fire('Error','Failed','error'); }
+    try { await api.patch(`/bookings/${id}/return`); fetchData(); Swal.fire('Returned','Stock updated.','success'); } catch(e) { Swal.fire('Error','Failed to return items','error'); }
   };
 
   const handleCreateRoom = async (e: React.FormEvent) => {
@@ -117,24 +117,23 @@ function AdminDashboard() {
         await api.post('/rooms', { ...newRoom, capacity: Number(newRoom.capacity), is_active: true }); 
         setNewRoom({name:'', capacity:0, location:'', image_url:''}); 
         fetchData(); 
-        Swal.fire('Success','สร้างห้องสำเร็จ','success'); 
-    } catch(e){ Swal.fire('Error','สร้างห้องไม่สำเร็จ','error'); }
+        Swal.fire('Success','Room created successfully','success'); 
+    } catch(e){ Swal.fire('Error','Failed to create room','error'); }
   };
 
   const handleDeleteRoom = (id: number) => {
-    Swal.fire({ title: 'ลบห้อง?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => { if(r.isConfirmed) { try { await api.delete(`/rooms/${id}`); fetchData(); } catch(e) { Swal.fire('Error','ลบไม่ได้','error'); } } });
+    Swal.fire({ title: 'Delete Room?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => { if(r.isConfirmed) { try { await api.delete(`/rooms/${id}`); fetchData(); } catch(e) { Swal.fire('Error','Cannot delete','error'); } } });
   };
 
   const handleCreateFacility = async (e: React.FormEvent) => {
     e.preventDefault();
-    try { await api.post('/facilities', { name: newFacility.name, total_stock: Number(newFacility.stock) }); setNewFacility({name:'', stock:1}); fetchData(); } catch(e){ Swal.fire('Error','','error'); }
+    try { await api.post('/facilities', { name: newFacility.name, total_stock: Number(newFacility.stock) }); setNewFacility({name:'', stock:1}); fetchData(); } catch(e){ Swal.fire('Error','Failed to add item','error'); }
   };
 
   const handleDeleteFacility = (id: number) => {
-    Swal.fire({ title: 'ลบอุปกรณ์?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => { if(r.isConfirmed) { try { await api.delete(`/facilities/${id}`); fetchData(); } catch(e) { Swal.fire('Error','','error'); } } });
+    Swal.fire({ title: 'Delete Item?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then(async (r) => { if(r.isConfirmed) { try { await api.delete(`/facilities/${id}`); fetchData(); } catch(e) { Swal.fire('Error','Cannot delete','error'); } } });
   };
 
-  // Components for cleaner code
   const KPICard = ({ title, value, icon, color }: any) => (
       <Paper elevation={0} sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 4, bgcolor: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
           <Box>
@@ -160,7 +159,6 @@ function AdminDashboard() {
 
       <Container maxWidth="xl" sx={{ mt: 4 }}>
         
-        {/* 1️⃣ KPI Section */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} md={4}> <KPICard title="Total Bookings" value={summary.total} icon={<EventNote/>} color="#3b82f6" /> </Grid>
             <Grid item xs={12} md={4}> <KPICard title="Pending Requests" value={summary.pending} icon={<Assessment/>} color="#f59e0b" /> </Grid>
@@ -168,14 +166,12 @@ function AdminDashboard() {
         </Grid>
 
         <Grid container spacing={3}>
-            {/* 2️⃣ Left Column: Statistics & Bookings (Width 8) */}
             <Grid item xs={12} lg={8}>
                 <Stack spacing={3}>
-                    {/* Charts Row */}
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
                             <Paper sx={{ p: 3, borderRadius: 4, height: 320, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>สถานะการจอง</Typography>
+                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Booking Status</Typography>
                                 <Box sx={{ width: '100%', height: 250 }}>
                                     <SafeResponsiveContainer>
                                         <SafePieChart>
@@ -191,7 +187,7 @@ function AdminDashboard() {
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <Paper sx={{ p: 3, borderRadius: 4, height: 320, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>ห้องยอดนิยม</Typography>
+                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>Popular Rooms</Typography>
                                 <Box sx={{ width: '100%', height: 250 }}>
                                     <SafeResponsiveContainer>
                                         <SafeBarChart data={roomStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -207,11 +203,10 @@ function AdminDashboard() {
                         </Grid>
                     </Grid>
 
-                    {/* Booking Table */}
                     <Paper sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
                         <Box sx={{ p: 2.5, bgcolor: '#fff', borderBottom: '1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                            <Typography variant="h6" fontWeight="bold" color="#1e293b">📋 รายการจองล่าสุด</Typography>
-                            <Chip label={`${bookings.length} รายการ`} size="small" />
+                            <Typography variant="h6" fontWeight="bold" color="#1e293b">📋 Recent Bookings</Typography>
+                            <Chip label={`${bookings.length} items`} size="small" />
                         </Box>
                         <TableContainer sx={{ maxHeight: 600 }}>
                             <Table stickyHeader size="small">
@@ -220,7 +215,8 @@ function AdminDashboard() {
                                         <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}}>ID</TableCell>
                                         <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}}>User</TableCell>
                                         <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}}>Room</TableCell>
-                                        <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}}>Date/Time</TableCell>
+                                        {/* ✅ แก้ไข Header ให้ชัดเจน */}
+                                        <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}}>Booking Period (Start - End)</TableCell>
                                         <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}} align="center">Status</TableCell>
                                         <TableCell sx={{bgcolor:'#f8fafc', fontWeight:'bold'}} align="right">Action</TableCell>
                                     </TableRow>
@@ -236,9 +232,24 @@ function AdminDashboard() {
                                                     <Chip key={i} label={`${bf.facility?.name} x${bf.quantity}`} size="small" sx={{fontSize:'0.65rem', height:20, mr:0.5}} />
                                                 ))}
                                             </TableCell>
+                                            {/* ✅ แก้ไขการแสดงผลเวลาให้ชัดเจน แยกบรรทัด Start/End */}
                                             <TableCell>
-                                                <Typography variant="body2">{new Date(b.start_time).toLocaleDateString()}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{new Date(b.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}-{new Date(b.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</Typography>
+                                                <Stack spacing={0.5}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#15803d' }}>
+                                                        <AccessTime sx={{ fontSize: 16 }} />
+                                                        <Typography variant="caption" fontWeight="bold">Start:</Typography>
+                                                        <Typography variant="caption">
+                                                            {new Date(b.start_time).toLocaleDateString()} {new Date(b.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#b91c1c' }}>
+                                                        <AccessTime sx={{ fontSize: 16 }} />
+                                                        <Typography variant="caption" fontWeight="bold">End:&nbsp;&nbsp;</Typography>
+                                                        <Typography variant="caption">
+                                                            {new Date(b.end_time).toLocaleDateString()} {new Date(b.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                                        </Typography>
+                                                    </Box>
+                                                </Stack>
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Chip label={b.status} size="small" color={b.status==='approved'?'success':b.status==='pending'?'warning':'default'} sx={{textTransform:'uppercase', fontWeight:'bold', fontSize:'0.7rem'}}/>
@@ -247,12 +258,12 @@ function AdminDashboard() {
                                                 <Box sx={{display:'flex', justifyContent:'flex-end', gap:0.5}}>
                                                     {b.status === 'pending' && (
                                                         <>
-                                                        <IconButton size="small" color="success" onClick={()=>updateBookingStatus(b.id,'approved')}><CheckCircle/></IconButton>
-                                                        <IconButton size="small" color="error" onClick={()=>updateBookingStatus(b.id,'rejected')}><Cancel/></IconButton>
+                                                        <IconButton size="small" color="success" onClick={()=>updateBookingStatus(b.id,'approved')} title="Approve"><CheckCircle/></IconButton>
+                                                        <IconButton size="small" color="error" onClick={()=>updateBookingStatus(b.id,'rejected')} title="Reject"><Cancel/></IconButton>
                                                         </>
                                                     )}
-                                                    {b.status === 'approved' && <IconButton size="small" color="warning" onClick={()=>handleReturn(b.id)} title="คืนของ"><Reply/></IconButton>}
-                                                    <IconButton size="small" onClick={()=>handleDeleteBooking(b.id)} sx={{color:'#cbd5e1', '&:hover':{color:'#ef4444'}}}><Delete/></IconButton>
+                                                    {b.status === 'approved' && <IconButton size="small" color="warning" onClick={()=>handleReturn(b.id)} title="Return Items"><Reply/></IconButton>}
+                                                    <IconButton size="small" onClick={()=>handleDeleteBooking(b.id)} sx={{color:'#cbd5e1', '&:hover':{color:'#ef4444'}}} title="Delete"><Delete/></IconButton>
                                                 </Box>
                                             </TableCell>
                                         </TableRow>
@@ -264,7 +275,6 @@ function AdminDashboard() {
                 </Stack>
             </Grid>
 
-            {/* 3️⃣ Right Column: Management (Width 4) */}
             <Grid item xs={12} lg={4}>
                 <Card sx={{ borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -276,18 +286,16 @@ function AdminDashboard() {
                     
                     <CardContent sx={{ flexGrow: 1, overflowY: 'auto', p: 0 }}>
                         {tabValue === 0 ? (
-                            // 🏨 Room Management Tab
                             <Box sx={{ p: 3 }}>
-                                <Typography variant="h6" fontWeight="bold" gutterBottom>เพิ่มห้องประชุม</Typography>
+                                <Typography variant="h6" fontWeight="bold" gutterBottom>Add New Room</Typography>
                                 <Stack spacing={2} component="form" onSubmit={handleCreateRoom} sx={{ mb: 4 }}>
-                                    <TextField label="ชื่อห้อง" fullWidth size="small" value={newRoom.name} onChange={e=>setNewRoom({...newRoom, name:e.target.value})} required variant="outlined" />
+                                    <TextField label="Room Name" fullWidth size="small" value={newRoom.name} onChange={e=>setNewRoom({...newRoom, name:e.target.value})} required variant="outlined" />
                                     <Stack direction="row" spacing={2}>
-                                        <TextField label="ความจุ" type="number" size="small" value={newRoom.capacity||''} onChange={e=>setNewRoom({...newRoom, capacity:Number(e.target.value)})} required sx={{width:'40%'}} />
-                                        <TextField label="สถานที่" size="small" fullWidth value={newRoom.location} onChange={e=>setNewRoom({...newRoom, location:e.target.value})} required />
+                                        <TextField label="Capacity" type="number" size="small" value={newRoom.capacity||''} onChange={e=>setNewRoom({...newRoom, capacity:Number(e.target.value)})} required sx={{width:'40%'}} />
+                                        <TextField label="Location" size="small" fullWidth value={newRoom.location} onChange={e=>setNewRoom({...newRoom, location:e.target.value})} required />
                                     </Stack>
-                                    {/* ✅ ช่องกรอก URL รูปภาพ */}
                                     <TextField 
-                                        label="URL รูปภาพ (Optional)" 
+                                        label="Image URL (Optional)" 
                                         fullWidth size="small" 
                                         value={newRoom.image_url} 
                                         onChange={e=>setNewRoom({...newRoom, image_url:e.target.value})} 
@@ -296,7 +304,7 @@ function AdminDashboard() {
                                     <Button type="submit" variant="contained" fullWidth sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }} startIcon={<AddCircle/>}>Create Room</Button>
                                 </Stack>
 
-                                <Divider sx={{ my: 2 }}>รายการห้องปัจจุบัน</Divider>
+                                <Divider sx={{ my: 2 }}>Current Rooms</Divider>
 
                                 <Stack spacing={1}>
                                     {rooms.map(r => (
@@ -304,7 +312,7 @@ function AdminDashboard() {
                                             <Avatar src={r.image_url} variant="rounded" sx={{ width: 50, height: 50, bgcolor: '#f1f5f9' }}><MeetingRoom color="action"/></Avatar>
                                             <Box sx={{ flexGrow: 1 }}>
                                                 <Typography variant="subtitle2" fontWeight="bold">{r.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{r.location} • {r.capacity} คน</Typography>
+                                                <Typography variant="caption" color="text.secondary">{r.location} • {r.capacity} ppl</Typography>
                                             </Box>
                                             <IconButton size="small" color="error" onClick={()=>handleDeleteRoom(r.id)}><Delete/></IconButton>
                                         </Paper>
@@ -312,16 +320,15 @@ function AdminDashboard() {
                                 </Stack>
                             </Box>
                         ) : (
-                            // 🛠️ Facility Management Tab
                             <Box sx={{ p: 3 }}>
-                                <Typography variant="h6" fontWeight="bold" gutterBottom>เพิ่มอุปกรณ์</Typography>
+                                <Typography variant="h6" fontWeight="bold" gutterBottom>Add Facility</Typography>
                                 <Stack spacing={2} component="form" onSubmit={handleCreateFacility} sx={{ mb: 4 }}>
-                                    <TextField label="ชื่ออุปกรณ์" fullWidth size="small" value={newFacility.name} onChange={e=>setNewFacility({...newFacility, name:e.target.value})} required />
-                                    <TextField label="จำนวนในคลัง (Stock)" type="number" fullWidth size="small" value={newFacility.stock} onChange={e=>setNewFacility({...newFacility, stock:Number(e.target.value)})} required />
+                                    <TextField label="Facility Name" fullWidth size="small" value={newFacility.name} onChange={e=>setNewFacility({...newFacility, name:e.target.value})} required />
+                                    <TextField label="Stock Amount" type="number" fullWidth size="small" value={newFacility.stock} onChange={e=>setNewFacility({...newFacility, stock:Number(e.target.value)})} required />
                                     <Button type="submit" variant="contained" color="secondary" fullWidth sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }} startIcon={<AddCircle/>}>Add Item</Button>
                                 </Stack>
 
-                                <Divider sx={{ my: 2 }}>รายการอุปกรณ์</Divider>
+                                <Divider sx={{ my: 2 }}>Current Facilities</Divider>
 
                                 <Stack spacing={1}>
                                     {facilities.map(f => (

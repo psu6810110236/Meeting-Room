@@ -7,13 +7,13 @@ import {
   Button, Card, CardContent, TextField, 
   MenuItem, Select, FormControl, CircularProgress, 
   Stack, Avatar, Menu, Tooltip, Chip, Tab, Tabs,
-  Dialog, DialogTitle, DialogContent, DialogActions, Fade, Grow
+  Fade, Grow, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import {
   Menu as MenuIcon, Dashboard, History, Logout, 
   EventAvailable, LocationOn, Person, AdminPanelSettings,
   ChevronLeft, Edit, CalendarMonth, GridView, 
-  Construction, Event, Schedule, Search, EventNote // ✅ เพิ่ม EventNote ตรงนี้ครับ
+  Construction, Event, Schedule, Search, EventNote, Cancel
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles'; 
 import Swal from 'sweetalert2';
@@ -31,7 +31,15 @@ const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 const drawerWidth = 280;
 
-// ✨ Main Area ปรับ Animation
+// ✅ 1. Status Mapping (English)
+const statusMap: Record<string, string> = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  completed: 'Completed'
+};
+
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ open?: boolean }>(({ theme, open }) => ({
   flexGrow: 1,
   padding: theme.spacing(3),
@@ -40,10 +48,9 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ 
   ...(open && { marginLeft: 0 }),
 }));
 
-// ✨ Navbar แบบ Glassmorphism
 const AppBarStyled = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'open' })<{ open?: boolean }>(({ theme, open }) => ({
-  background: 'rgba(255, 255, 255, 0.8)', // โปร่งแสง
-  backdropFilter: 'blur(12px)', // เบลอพื้นหลัง
+  background: 'rgba(255, 255, 255, 0.8)',
+  backdropFilter: 'blur(12px)',
   color: '#1e293b',
   boxShadow: '0 4px 30px rgba(0, 0, 0, 0.03)',
   borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
@@ -70,17 +77,6 @@ const RoomList = () => {
   const [capacityFilter, setCapacityFilter] = useState<number | ''>('');
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const getDuration = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const hours = Math.floor(diffMs / 3600000);
-    const minutes = Math.round((diffMs % 3600000) / 60000);
-    if (hours === 0) return `${minutes} นาที`;
-    if (minutes === 0) return `${hours} ชม.`;
-    return `${hours} ชม. ${minutes} น.`;
-  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -118,7 +114,10 @@ const RoomList = () => {
             bookingsForCalendar = resMy.data;
         }
         const events = bookingsForCalendar.filter(b => b.status === 'approved' || b.status === 'pending' || b.status === 'completed').map(b => ({
-                title: `${b.room?.name} (${b.status})`, start: new Date(b.start_time), end: new Date(b.end_time), resource: b.status
+                title: `${b.room?.name} (${statusMap[b.status] || b.status})`, 
+                start: new Date(b.start_time), 
+                end: new Date(b.end_time), 
+                resource: b.status
             }));
         setCalendarEvents(events);
       } catch (e) {}
@@ -129,7 +128,7 @@ const RoomList = () => {
 
   const handleLogout = () => {
     Swal.fire({
-      title: 'ต้องการออกจากระบบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'ใช่, ออกจากระบบ', cancelButtonText: 'ยกเลิก'
+      title: 'Are you sure?', text: 'Do you want to logout?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Yes, Logout', cancelButtonText: 'Cancel'
     }).then((result) => {
       if (result.isConfirmed) {
         localStorage.removeItem('token');
@@ -138,8 +137,31 @@ const RoomList = () => {
     });
   };
 
+  const handleCancelBooking = async (id: number) => {
+    Swal.fire({
+      title: 'Cancel Booking?',
+      text: "Are you sure you want to cancel this booking?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, Cancel it',
+      cancelButtonText: 'No'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await api.patch(`/bookings/${id}/cancel`); 
+          Swal.fire('Cancelled!', 'Your booking has been cancelled.', 'success');
+          fetchData(); 
+        } catch (error: any) {
+          Swal.fire('Error', error.response?.data?.message || 'Failed to cancel booking.', 'error');
+        }
+      }
+    });
+  };
+
   const handleUpdateProfile = async () => {
-    try { await api.patch('/auth/profile', editForm); Swal.fire('สำเร็จ!', 'อัปเดตข้อมูลส่วนตัวเรียบร้อยแล้ว', 'success'); setEditProfileOpen(false); fetchData(); } catch (error) { Swal.fire('Error!', 'เกิดข้อผิดพลาดในการอัปเดต', 'error'); }
+    try { await api.patch('/auth/profile', editForm); Swal.fire('Success!', 'Profile updated successfully.', 'success'); setEditProfileOpen(false); fetchData(); } catch (error) { Swal.fire('Error!', 'Failed to update profile.', 'error'); }
   };
 
   const renderRoomGrid = () => {
@@ -152,7 +174,7 @@ const RoomList = () => {
     return (
       <Grid container spacing={3}>
         {filteredRooms.length === 0 ? (
-            <Grid item xs={12}><Typography variant="h6" align="center" color="text.secondary" sx={{ mt: 4 }}>ไม่พบห้องประชุมที่ค้นหา</Typography></Grid>
+            <Grid item xs={12}><Typography variant="h6" align="center" color="text.secondary" sx={{ mt: 4 }}>No rooms found matching your search.</Typography></Grid>
         ) : (
             filteredRooms.map((room, index) => (
             <Grow in={true} timeout={(index + 1) * 200} key={room.id}>
@@ -173,13 +195,12 @@ const RoomList = () => {
                         backgroundImage: room.image_url ? `url(${room.image_url})` : `linear-gradient(135deg, ${room.id%2===0 ? '#6366f1' : '#8b5cf6'} 0%, #4338ca 100%)`, 
                         backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', p: 2, position: 'relative' 
                     }}>
-                         {/* Overlay Gradient */}
                         <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)' }} />
                         
                         {!room.image_url && <EventAvailable sx={{ fontSize: 80, color: 'rgba(255,255,255,0.2)', position: 'absolute', bottom: -10, left: -10 }} />}
                         
                         <Chip 
-                            label={room.is_active ? "พร้อมใช้งาน" : "ไม่ว่าง"} 
+                            label={room.is_active ? "Available" : "Busy"} 
                             size="small" 
                             sx={{ 
                                 fontWeight: 'bold', backdropFilter: 'blur(8px)', 
@@ -198,7 +219,7 @@ const RoomList = () => {
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#64748b' }}>
                                 <Avatar sx={{ width: 28, height: 28, bgcolor: '#f1f5f9', color: '#64748b' }}><Person fontSize="small"/></Avatar>
-                                <Typography variant="body2">รองรับ {room.capacity} ท่าน</Typography>
+                                <Typography variant="body2">Capacity: {room.capacity} ppl</Typography>
                             </Box>
                         </Stack>
                     </CardContent>
@@ -214,7 +235,7 @@ const RoomList = () => {
                                 '&:hover': { boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.4)' }
                             }}
                         >
-                            จองห้องนี้
+                            Book Now
                         </Button>
                     </Box>
                     </Card>
@@ -228,7 +249,6 @@ const RoomList = () => {
 
   const renderDashboard = () => (
     <Box>
-       {/* ✨ Hero Search Section แบบใหม่ */}
        <Paper 
         elevation={0}
         sx={{ 
@@ -243,15 +263,14 @@ const RoomList = () => {
                 Find Your Perfect Space 🏢
             </Typography>
             <Typography variant="h6" sx={{opacity:0.9, mb:4, fontWeight: 300}}>
-                จองห้องประชุมออนไลน์ ง่าย รวดเร็ว พร้อมอุปกรณ์ครบครัน
+                Easy and fast online meeting room booking with full facilities.
             </Typography>
             
-            {/* Search Bar ลอยเด่น */}
             <Paper elevation={4} sx={{ p: 1, display: 'flex', alignItems: 'center', borderRadius: 4, width: '100%', maxWidth: 700 }}>
                  <IconButton sx={{ p: '10px' }} aria-label="search"><Search color="primary" /></IconButton>
                  <TextField 
                     fullWidth 
-                    placeholder="ค้นหาห้องประชุม หรือ สถานที่..." 
+                    placeholder="Search for rooms or locations..." 
                     variant="standard" 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)} 
@@ -266,7 +285,7 @@ const RoomList = () => {
                         displayEmpty
                         sx={{ fontWeight: 'bold', color: '#475569' }}
                     >
-                        <MenuItem value="">ทั้งหมด (ขนาด)</MenuItem><MenuItem value={4}>4+ คน</MenuItem><MenuItem value={10}>10+ คน</MenuItem><MenuItem value={20}>20+ คน</MenuItem>
+                        <MenuItem value="">All (Capacity)</MenuItem><MenuItem value={4}>4+ ppl</MenuItem><MenuItem value={10}>10+ ppl</MenuItem><MenuItem value={20}>20+ ppl</MenuItem>
                     </Select>
                 </FormControl>
             </Paper>
@@ -275,8 +294,8 @@ const RoomList = () => {
 
        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
           <Tabs value={dashboardTab} onChange={(_, v) => setDashboardTab(v)} textColor="primary" indicatorColor="primary">
-             <Tab icon={<GridView />} label="รายการห้อง" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
-             <Tab icon={<CalendarMonth />} label="ปฏิทินการจอง" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
+             <Tab icon={<GridView />} label="Room List" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
+             <Tab icon={<CalendarMonth />} label="Booking Calendar" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
           </Tabs>
        </Box>
 
@@ -287,7 +306,7 @@ const RoomList = () => {
                 events={calendarEvents} 
                 startAccessor="start" 
                 endAccessor="end" 
-                style={{ height: '100%', fontFamily: 'Sarabun' }} 
+                style={{ height: '100%', fontFamily: 'Inter' }} 
                 eventPropGetter={(event) => ({
                     style: { 
                         backgroundColor: event.resource === 'approved' ? '#10b981' : event.resource === 'pending' ? '#f59e0b' : '#64748b',
@@ -314,7 +333,7 @@ const RoomList = () => {
           {isAdmin && <Button variant="outlined" color="primary" startIcon={<AdminPanelSettings />} onClick={() => navigate('/admin')} sx={{ mr: 2, borderRadius: 2, textTransform: 'none', border: '2px solid' }}>Admin Console</Button>}
           
           <Box sx={{ flexGrow: 0 }}>
-            <Tooltip title="ตั้งค่าโปรไฟล์">
+            <Tooltip title="Account settings">
               <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0.5, border: '2px solid #e2e8f0', borderRadius: '50%' }}>
                 <Avatar src={userProfile?.profile_picture} sx={{ width: 40, height: 40 }}>{userProfile?.first_name?.[0]}</Avatar>
               </IconButton>
@@ -331,8 +350,8 @@ const RoomList = () => {
                 <Typography variant="caption" color="text.secondary">User</Typography>
               </Box>
               <Divider />
-              <MenuItem onClick={() => { setEditProfileOpen(true); setAnchorElUser(null); }}> <ListItemIcon><Edit fontSize="small" /></ListItemIcon> แก้ไขข้อมูลส่วนตัว </MenuItem>
-              <MenuItem onClick={handleLogout} sx={{ color: '#ef4444' }}> <ListItemIcon><Logout fontSize="small" sx={{ color: '#ef4444' }} /></ListItemIcon> ออกจากระบบ </MenuItem>
+              <MenuItem onClick={() => { setEditProfileOpen(true); setAnchorElUser(null); }}> <ListItemIcon><Edit fontSize="small" /></ListItemIcon> Edit Profile </MenuItem>
+              <MenuItem onClick={handleLogout} sx={{ color: '#ef4444' }}> <ListItemIcon><Logout fontSize="small" sx={{ color: '#ef4444' }} /></ListItemIcon> Logout </MenuItem>
             </Menu>
           </Box>
         </Toolbar>
@@ -357,11 +376,11 @@ const RoomList = () => {
         <List sx={{ px: 2, pt: 2 }}>
           <ListItemButton selected={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} sx={{ borderRadius: 3, mb: 1, py: 1.5, '&.Mui-selected': { bgcolor: '#e0e7ff', color: '#4338ca' } }}>
             <ListItemIcon><Dashboard sx={{ color: currentView === 'dashboard' ? '#4338ca' : '#94a3b8' }} /></ListItemIcon> 
-            <ListItemText primary="จองห้องประชุม" primaryTypographyProps={{fontWeight: 'bold'}} />
+            <ListItemText primary="Book a Room" primaryTypographyProps={{fontWeight: 'bold'}} />
           </ListItemButton>
           <ListItemButton selected={currentView === 'history'} onClick={() => setCurrentView('history')} sx={{ borderRadius: 3, mb: 1, py: 1.5, '&.Mui-selected': { bgcolor: '#e0e7ff', color: '#4338ca' } }}>
             <ListItemIcon><History sx={{ color: currentView === 'history' ? '#4338ca' : '#94a3b8' }} /></ListItemIcon> 
-            <ListItemText primary="ประวัติการจอง" primaryTypographyProps={{fontWeight: 'bold'}} />
+            <ListItemText primary="Booking History" primaryTypographyProps={{fontWeight: 'bold'}} />
           </ListItemButton>
         </List>
       </Drawer>
@@ -372,7 +391,7 @@ const RoomList = () => {
           {loading ? (
              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" mt={10}>
                 <CircularProgress size={60} thickness={4} sx={{ color: '#6366f1' }} />
-                <Typography sx={{ mt: 2, color: '#64748b', fontWeight: 'bold' }}>กำลังโหลดข้อมูล...</Typography>
+                <Typography sx={{ mt: 2, color: '#64748b', fontWeight: 'bold' }}>Loading data...</Typography>
              </Box>
           ) : (
             currentView === 'dashboard' ? renderDashboard() : (
@@ -381,12 +400,12 @@ const RoomList = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#e0e7ff', color: '#4338ca', width: 56, height: 56 }}><History fontSize="large"/></Avatar>
                     <Box>
-                        <Typography variant="h5" fontWeight="800" color="#1e293b">ประวัติการจองของฉัน</Typography>
-                        <Typography variant="body2" color="text.secondary">รายการที่คุณได้ทำการจองไว้ทั้งหมด</Typography>
+                        <Typography variant="h5" fontWeight="800" color="#1e293b">My Booking History</Typography>
+                        <Typography variant="body2" color="text.secondary">All your booking requests and history.</Typography>
                     </Box>
                 </Box>
                 
-                {myBookings.length === 0 ? <Box sx={{ textAlign: 'center', py: 10, opacity: 0.6 }}><EventNote fontSize="large" sx={{ fontSize: 80, color: '#cbd5e1', mb: 2 }}/><Typography variant="h6" color="text.secondary">ยังไม่มีประวัติการจอง</Typography></Box> : 
+                {myBookings.length === 0 ? <Box sx={{ textAlign: 'center', py: 10, opacity: 0.6 }}><EventNote fontSize="large" sx={{ fontSize: 80, color: '#cbd5e1', mb: 2 }}/><Typography variant="h6" color="text.secondary">No booking history found.</Typography></Box> : 
                 <Grid container spacing={3}>
                     {myBookings.map((b) => (
                     <Grid item xs={12} key={b.id}>
@@ -396,14 +415,19 @@ const RoomList = () => {
                                     <Typography variant="h6" fontWeight="bold" color="#1e293b">{b.room?.name}</Typography>
                                     {b.purpose && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>📝 "{b.purpose}"</Typography>}
                                 </Box>
-                                <Chip label={b.status.toUpperCase()} color={b.status==='approved'?'success':b.status==='completed'?'info':b.status==='pending'?'warning':'error'} variant={b.status==='pending'?'outlined':'filled'} sx={{fontWeight:'800', borderRadius: 2}} />
+                                <Chip 
+                                    label={statusMap[b.status] || b.status} 
+                                    color={b.status==='approved'?'success':b.status==='completed'?'info':b.status==='pending'?'warning':'error'} 
+                                    variant={b.status==='pending'?'outlined':'filled'} 
+                                    sx={{fontWeight:'800', borderRadius: 2}} 
+                                />
                             </Box>
                             <Divider sx={{ borderStyle: 'dashed', my: 2 }} />
                             <Grid container spacing={2}>
                                 <Grid item xs={12} md={6}>
                                     <Stack direction="row" spacing={4}>
-                                        <Box><Typography variant="caption" color="text.secondary" fontWeight="bold">DATE</Typography><Typography variant="body1" fontWeight="600" sx={{display:'flex', alignItems:'center', gap:1}}><Event color="primary" fontSize="small"/> {new Date(b.start_time).toLocaleDateString('th-TH')}</Typography></Box>
-                                        <Box><Typography variant="caption" color="text.secondary" fontWeight="bold">TIME</Typography><Typography variant="body1" fontWeight="600" sx={{display:'flex', alignItems:'center', gap:1}}><Schedule color="primary" fontSize="small"/> {new Date(b.start_time).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})} - {new Date(b.end_time).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}</Typography></Box>
+                                        <Box><Typography variant="caption" color="text.secondary" fontWeight="bold">DATE</Typography><Typography variant="body1" fontWeight="600" sx={{display:'flex', alignItems:'center', gap:1}}><Event color="primary" fontSize="small"/> {new Date(b.start_time).toLocaleDateString('en-GB')}</Typography></Box>
+                                        <Box><Typography variant="caption" color="text.secondary" fontWeight="bold">TIME</Typography><Typography variant="body1" fontWeight="600" sx={{display:'flex', alignItems:'center', gap:1}}><Schedule color="primary" fontSize="small"/> {new Date(b.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {new Date(b.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</Typography></Box>
                                     </Stack>
                                 </Grid>
                                 <Grid item xs={12} md={6}>
@@ -411,6 +435,22 @@ const RoomList = () => {
                                     {b.booking_facilities?.length ? <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>{b.booking_facilities.map((bf:any, i:number)=><Chip key={i} icon={<Construction style={{fontSize:14}}/>} label={`${bf.facility?.name} x${bf.quantity}`} size="small" sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 600 }} />)}</Box> : <Typography variant="body2" color="text.secondary">-</Typography>}
                                 </Grid>
                             </Grid>
+                            
+                            {['pending', 'approved'].includes(b.status) && (
+                              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', pt: 2 }}>
+                                <Button 
+                                  variant="outlined" 
+                                  color="error" 
+                                  size="small"
+                                  startIcon={<Cancel />}
+                                  onClick={() => handleCancelBooking(b.id)}
+                                  sx={{ borderRadius: 2, fontWeight: 'bold', textTransform: 'none', border: '2px solid' }}
+                                >
+                                  Cancel Booking
+                                </Button>
+                              </Box>
+                            )}
+
                         </Paper>
                     </Grid>
                     ))}
@@ -423,8 +463,8 @@ const RoomList = () => {
         </Container>
       </Main>
 
-      <BookingModal open={isModalOpen} handleClose={() => setIsModalOpen(false)} room={selectedRoom} onSuccess={() => { fetchData(); Swal.fire('สำเร็จ!', 'ส่งคำขอจองเรียบร้อยแล้ว', 'success'); }} />
-      <Dialog open={editProfileOpen} onClose={() => setEditProfileOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 4 } }}><DialogTitle sx={{ fontWeight: 'bold' }}>แก้ไขข้อมูลส่วนตัว</DialogTitle><DialogContent dividers><Stack spacing={3} sx={{ mt: 1 }}><Box display="flex" justifyContent="center"><Avatar src={editForm.profile_picture} sx={{ width: 100, height: 100, border: '4px solid #f8fafc', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} /></Box><TextField label="ชื่อ" fullWidth value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})} variant="outlined" /><TextField label="นามสกุล" fullWidth value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})} variant="outlined" /><TextField label="URL รูปโปรไฟล์" fullWidth value={editForm.profile_picture} onChange={e => setEditForm({...editForm, profile_picture: e.target.value})} variant="outlined" placeholder="https://..." /></Stack></DialogContent><DialogActions sx={{ p: 3 }}><Button onClick={() => setEditProfileOpen(false)} size="large" sx={{ color: '#64748b' }}>ยกเลิก</Button><Button onClick={handleUpdateProfile} variant="contained" size="large" sx={{ borderRadius: 2, px: 4, background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)' }}>บันทึก</Button></DialogActions></Dialog>
+      <BookingModal open={isModalOpen} handleClose={() => setIsModalOpen(false)} room={selectedRoom} onSuccess={() => { fetchData(); Swal.fire('Success!', 'Booking request sent successfully.', 'success'); }} />
+      <Dialog open={editProfileOpen} onClose={() => setEditProfileOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 4 } }}><DialogTitle sx={{ fontWeight: 'bold' }}>Edit Profile</DialogTitle><DialogContent dividers><Stack spacing={3} sx={{ mt: 1 }}><Box display="flex" justifyContent="center"><Avatar src={editForm.profile_picture} sx={{ width: 100, height: 100, border: '4px solid #f8fafc', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} /></Box><TextField label="First Name" fullWidth value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})} variant="outlined" /><TextField label="Last Name" fullWidth value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})} variant="outlined" /><TextField label="Profile Picture URL" fullWidth value={editForm.profile_picture} onChange={e => setEditForm({...editForm, profile_picture: e.target.value})} variant="outlined" placeholder="https://..." /></Stack></DialogContent><DialogActions sx={{ p: 3 }}><Button onClick={() => setEditProfileOpen(false)} size="large" sx={{ color: '#64748b' }}>Cancel</Button><Button onClick={handleUpdateProfile} variant="contained" size="large" sx={{ borderRadius: 2, px: 4, background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)' }}>Save Changes</Button></DialogActions></Dialog>
     </Box>
   );
 };

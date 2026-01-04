@@ -23,17 +23,48 @@ export class BookingsService {
   ) {}
 
   /**
-   * 1. สร้างการจอง: เช็คสต็อกที่ว่างจริงตามช่วงเวลา (Cross-Room Checking)
+   * 1. Create Booking
+   * - Rule: Max 3 Approved bookings per user
+   * - Rule: No self-overlapping bookings
+   * - Rule: Check room availability and facility stock
    */
   async create(createBookingDto: CreateBookingDto, userId: number) {
     const { roomId, startTime, endTime, purpose, facilities } = createBookingDto;
     const start = new Date(startTime);
     const end = new Date(endTime);
 
-    if (start >= end) throw new BadRequestException('เวลาเริ่มต้นต้องอยู่ก่อนเวลาสิ้นสุด');
+    if (start >= end) throw new BadRequestException('Start time must be before end time.');
 
+    // 🛑 Rule 1: Check if user has 3 APPROVED bookings
+    const approvedCount = await this.bookingRepository.count({
+      where: {
+        user: { id: userId },
+        status: BookingStatus.APPROVED
+      }
+    });
+
+    if (approvedCount >= 3) {
+      throw new BadRequestException('You have reached the limit of 3 approved bookings.');
+    }
+
+    // 🛑 Rule 2: Check self-overlapping (User cannot be in two places at once)
+    const overlappingUser = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .where('booking.user = :userId', { userId })
+      .andWhere('booking.status IN (:...statuses)', {
+        statuses: [BookingStatus.APPROVED, BookingStatus.PENDING]
+      })
+      .andWhere('booking.start_time < :end', { end })
+      .andWhere('booking.end_time > :start', { start })
+      .getOne();
+
+    if (overlappingUser) {
+      throw new BadRequestException('You already have a booking during this time.');
+    }
+
+    // --- Check Room Availability ---
     const room = await this.roomRepository.findOne({ where: { id: roomId } });
-    if (!room) throw new NotFoundException('ไม่พบห้องประชุม');
+    if (!room) throw new NotFoundException('Meeting room not found.');
 
     const overlappingRoom = await this.bookingRepository
       .createQueryBuilder('booking')
@@ -45,7 +76,7 @@ export class BookingsService {
       .andWhere('booking.end_time > :start', { start })
       .getOne();
 
-    if (overlappingRoom) throw new BadRequestException('ห้องนี้ถูกจองแล้วในช่วงเวลานี้');
+    if (overlappingRoom) throw new BadRequestException('This room is already booked during this time.');
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -65,7 +96,7 @@ export class BookingsService {
       if (facilities && facilities.length > 0) {
         for (const f of facilities) {
           const facilityInfo = await queryRunner.manager.findOne(Facility, { where: { id: f.facility_id } });
-          if (!facilityInfo) throw new NotFoundException(`ไม่พบอุปกรณ์รหัส #${f.facility_id}`);
+          if (!facilityInfo) throw new NotFoundException(`Facility ID #${f.facility_id} not found.`);
 
           const usedQuantityResult = await this.bookingFacilityRepository
             .createQueryBuilder('bf')
@@ -81,7 +112,7 @@ export class BookingsService {
           const available = facilityInfo.total_stock - totalUsed;
 
           if (f.quantity > available) {
-            throw new BadRequestException(`อุปกรณ์ ${facilityInfo.name} ไม่พอในช่วงนี้ (ว่างให้จอง: ${available})`);
+            throw new BadRequestException(`Facility '${facilityInfo.name}' is insufficient (Available: ${available}).`);
           }
 
           const bf = queryRunner.manager.create(BookingFacility, {
@@ -103,7 +134,7 @@ export class BookingsService {
   }
 
   /**
-   * 2. อนุมัติการจอง: หักสต็อกทันที
+   * 2. Update Status (Approve/Reject)
    */
   async updateStatus(id: number, status: BookingStatus) {
     const booking = await this.bookingRepository.findOne({ 
@@ -111,7 +142,7 @@ export class BookingsService {
       relations: ['booking_facilities', 'booking_facilities.facility']
     });
 
-    if (!booking) throw new NotFoundException('ไม่พบรายการจอง');
+    if (!booking) throw new NotFoundException('Booking not found.');
     if (booking.status === status) return booking;
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -122,7 +153,7 @@ export class BookingsService {
       if (status === BookingStatus.APPROVED) {
         for (const bf of booking.booking_facilities) {
           if (bf.facility) {
-            if (bf.facility.total_stock < bf.quantity) throw new BadRequestException(`สต็อก ${bf.facility.name} ไม่พอ`);
+            if (bf.facility.total_stock < bf.quantity) throw new BadRequestException(`Stock for '${bf.facility.name}' is insufficient.`);
             bf.facility.total_stock -= bf.quantity;
             await queryRunner.manager.save(Facility, bf.facility);
           }
@@ -141,7 +172,7 @@ export class BookingsService {
   }
 
   /**
-   * 3. ระบบยืนยันการคืนของ: กดยืนยันแล้วสต็อกถึงจะเพิ่มกลับมา และเปลี่ยนสถานะเป็น COMPLETED
+   * 3. Confirm Return Items
    */
   async confirmReturn(id: number) {
     const booking = await this.bookingRepository.findOne({
@@ -149,7 +180,7 @@ export class BookingsService {
       relations: ['booking_facilities', 'booking_facilities.facility']
     });
 
-    if (!booking) throw new BadRequestException('รายการจองต้องมีสถานะ APPROVED ถึงจะยืนยันการคืนของได้');
+    if (!booking) throw new BadRequestException('Booking must be APPROVED to return items.');
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -162,12 +193,57 @@ export class BookingsService {
           await queryRunner.manager.save(Facility, bf.facility);
         }
       }
-      // ✅ เปลี่ยนสถานะเป็น COMPLETED เมื่อคืนของเรียบร้อยแล้ว
+      // Change status to COMPLETED
       booking.status = BookingStatus.COMPLETED; 
       await queryRunner.manager.save(Booking, booking);
 
       await queryRunner.commitTransaction();
-      return { message: 'ยืนยันการรับคืนอุปกรณ์และเพิ่มสต็อกเรียบร้อยแล้ว' };
+      return { message: 'Items returned and stock updated successfully.' };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * 4. User Cancel Booking
+   */
+  async cancelBooking(id: number, userId: number) {
+    const booking = await this.bookingRepository.findOne({
+      where: { id, user: { id: userId } },
+      relations: ['booking_facilities', 'booking_facilities.facility'],
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found or you do not have permission.');
+    }
+
+    if (booking.status !== BookingStatus.PENDING && booking.status !== BookingStatus.APPROVED) {
+      throw new BadRequestException('Cannot cancel a completed or already cancelled booking.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // If approved, return stock
+      if (booking.status === BookingStatus.APPROVED) {
+        for (const bf of booking.booking_facilities) {
+          if (bf.facility) {
+            bf.facility.total_stock += bf.quantity;
+            await queryRunner.manager.save(Facility, bf.facility);
+          }
+        }
+      }
+
+      booking.status = BookingStatus.CANCELLED;
+      await queryRunner.manager.save(Booking, booking);
+
+      await queryRunner.commitTransaction();
+      return { message: 'Booking cancelled successfully.' };
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
