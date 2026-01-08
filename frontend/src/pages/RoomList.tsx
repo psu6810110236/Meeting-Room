@@ -11,10 +11,10 @@ import {
   OutlinedInput, InputLabel, Checkbox
 } from '@mui/material';
 import {
-  Menu as MenuIcon, Dashboard, History, Logout, 
-  EventAvailable, LocationOn, Person, AdminPanelSettings,
+  Menu as MenuIcon, Dashboard, History, Logout, LocationOn, Person, AdminPanelSettings,
   ChevronLeft, Edit, CalendarMonth, GridView, 
-  Construction, Event, Schedule, Search, EventNote, Cancel
+  Construction, Event, Schedule, Search, EventNote, Cancel,
+  Bolt // เพิ่มไอคอนเท่ๆ
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles'; 
 import Swal from 'sweetalert2';
@@ -28,6 +28,7 @@ import api from '../api/axios';
 import type { MeetingRoom, Booking } from '../types';
 import BookingModal from '../components/BookingModal';
 import NotificationBell from '../components/NotificationBell';
+import ChatWidget from '../components/ChatWidget';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -49,12 +50,13 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{ 
   ...(open && { marginLeft: 0 }),
 }));
 
+// ✨ AppBar แบบ Glassmorphism
 const AppBarStyled = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'open' })<{ open?: boolean }>(({ theme, open }) => ({
-  background: 'rgba(255, 255, 255, 0.8)',
-  backdropFilter: 'blur(12px)',
+  background: 'rgba(255, 255, 255, 0.7)', // โปร่งแสง
+  backdropFilter: 'blur(20px)', // เบลอฉากหลัง
   color: '#1e293b',
-  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.03)',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+  boxShadow: 'none',
+  borderBottom: '1px solid rgba(255, 255, 255, 0.5)',
   transition: theme.transitions.create(['margin', 'width'], { easing: theme.transitions.easing.easeOut, duration: theme.transitions.duration.enteringScreen }),
   ...(open && { width: `calc(100% - ${drawerWidth}px)`, marginLeft: drawerWidth }),
 }));
@@ -86,13 +88,12 @@ const RoomList = () => {
     try {
       const token = localStorage.getItem('token');
       let userId: number | null = null;
-      let userRole: string | null = null;
 
       if (token) {
         const decoded: any = jwtDecode(token);
         setIsAdmin(decoded.role === 'admin');
         userId = decoded.sub;
-        userRole = decoded.role;
+        
         try {
             const resProfile = await api.get('/auth/profile');
             setUserProfile(resProfile.data);
@@ -110,7 +111,6 @@ const RoomList = () => {
       
       try {
         let bookingsForCalendar: Booking[] = [];
-        // ขอ limit เยอะๆ สำหรับปฏิทิน
         const resAll = await api.get('/bookings?limit=1000');
         
         if (resAll.data && Array.isArray(resAll.data.data)) {
@@ -120,7 +120,6 @@ const RoomList = () => {
         }
 
         const events = bookingsForCalendar
-            // ✅ แก้ไขตรงนี้: เอา 'completed' ออกจากรายการที่จะแสดงบนปฏิทิน
             .filter(b => ['approved', 'pending'].includes(b.status))
             .map(b => ({
                 title: `${b.room?.name} - ${b.user?.first_name || 'User'} (${statusMap[b.status] || b.status})`, 
@@ -195,65 +194,111 @@ const RoomList = () => {
             filteredRooms.map((room, index) => (
             <Grow in={true} timeout={(index + 1) * 200} key={room.id}>
                 <Grid item xs={12} sm={6} md={4} lg={3}>
+                    {/* ✨ Modern Card Design V2: เน้นรูปภาพใหญ่ๆ ตัวหนังสือทับภาพ */}
                     <Card sx={{ 
-                        height: '100%', display: 'flex', flexDirection: 'column', 
-                        borderRadius: 5, border: 'none', 
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)', 
-                        transition: '0.3s ease-in-out',
+                        height: '100%', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        borderRadius: '28px', // โค้งมนสะใจ
+                        border: '1px solid rgba(255, 255, 255, 0.6)', 
+                        bgcolor: 'rgba(255, 255, 255, 0.6)', // Glassmorphism
+                        backdropFilter: 'blur(16px)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', 
+                        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)', // Animation เด้งๆ
                         overflow: 'hidden',
+                        position: 'relative',
+                        cursor: 'pointer',
                         '&:hover': { 
-                            transform: 'translateY(-8px)', 
-                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' 
+                            transform: 'translateY(-12px)', // ลอยขึ้นสูง
+                            boxShadow: '0 20px 25px -5px rgba(99, 102, 241, 0.2)',
+                            borderColor: '#818cf8',
+                            '& .room-image': { transform: 'scale(1.1)' },
+                            '& .book-btn': { width: '90%', opacity: 1 } 
                         } 
                     }}>
-                    <Box sx={{ 
-                        height: 200, 
-                        backgroundImage: room.image_url ? `url(${room.image_url})` : `linear-gradient(135deg, ${room.id%2===0 ? '#6366f1' : '#8b5cf6'} 0%, #4338ca 100%)`, 
-                        backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', p: 2, position: 'relative' 
-                    }}>
-                        <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)' }} />
-                        
-                        {!room.image_url && <EventAvailable sx={{ fontSize: 80, color: 'rgba(255,255,255,0.2)', position: 'absolute', bottom: -10, left: -10 }} />}
-                        
-                        <Chip 
-                            label={room.is_active ? "Available" : "Busy"} 
-                            size="small" 
-                            sx={{ 
-                                fontWeight: 'bold', backdropFilter: 'blur(8px)', 
-                                bgcolor: room.is_active ? 'rgba(220, 252, 231, 0.9)' : 'rgba(254, 226, 226, 0.9)', 
-                                color: room.is_active ? '#15803d' : '#b91c1c',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }} 
-                        />
-                    </Box>
-                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                        <Typography variant="h6" fontWeight="800" gutterBottom sx={{color: '#1e293b'}}>{room.name}</Typography>
-                        <Stack spacing={1.5} mt={1}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#64748b' }}>
-                                <Avatar sx={{ width: 28, height: 28, bgcolor: '#f1f5f9', color: '#64748b' }}><LocationOn fontSize="small"/></Avatar>
-                                <Typography variant="body2">{room.location}</Typography>
+                        <Box sx={{ position: 'relative', height: 260, overflow: 'hidden' }}>
+                            <Box 
+                                className="room-image"
+                                sx={{ 
+                                    width: '100%', height: '100%', 
+                                    backgroundImage: room.image_url ? `url(${room.image_url})` : `linear-gradient(135deg, #6366f1 0%, #ec4899 100%)`, 
+                                    backgroundSize: 'cover', backgroundPosition: 'center',
+                                    transition: 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                                }} 
+                            />
+                            {/* Gradient Overlay ด้านล่างเพื่อให้ตัวหนังสือชัด */}
+                            <Box sx={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '70%', background: 'linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, transparent 100%)' }} />
+                            
+                            {/* Status Tag */}
+                            <Chip 
+                                icon={room.is_active ? <Bolt sx={{color:'#fff !important'}}/> : undefined}
+                                label={room.is_active ? "Available" : "Busy"} 
+                                size="small" 
+                                sx={{ 
+                                    position: 'absolute', top: 16, right: 16,
+                                    fontWeight: '800', 
+                                    backdropFilter: 'blur(12px)', 
+                                    bgcolor: room.is_active ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)', 
+                                    color: 'white',
+                                    borderRadius: '50px',
+                                    px: 0.5,
+                                    border: '1px solid rgba(255,255,255,0.3)'
+                                }} 
+                            />
+                            
+                            {/* ชื่อห้อง และ Location อยู่บนรูป */}
+                            <Box sx={{ position: 'absolute', bottom: 16, left: 20, right: 20 }}>
+                                <Typography variant="h5" sx={{ color: 'white', fontWeight: 800, textShadow: '0 2px 10px rgba(0,0,0,0.5)', lineHeight: 1.2, mb: 0.5 }}>
+                                    {room.name}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, opacity: 0.9 }}>
+                                    <LocationOn sx={{ color: '#94a3b8', fontSize: 16 }} />
+                                    <Typography variant="body2" sx={{ color: '#e2e8f0', fontWeight: 500 }}>{room.location}</Typography>
+                                </Box>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#64748b' }}>
-                                <Avatar sx={{ width: 28, height: 28, bgcolor: '#f1f5f9', color: '#64748b' }}><Person fontSize="small"/></Avatar>
-                                <Typography variant="body2">Capacity: {room.capacity} ppl</Typography>
-                            </Box>
-                        </Stack>
-                    </CardContent>
-                    <Box sx={{ p: 2, pt: 0 }}>
-                        <Button 
-                            fullWidth 
-                            variant="contained" 
-                            onClick={() => { setSelectedRoom(room); setIsModalOpen(true); }} 
-                            sx={{ 
-                                borderRadius: 3, py: 1.2, textTransform: 'none', fontWeight: 'bold', fontSize: '1rem',
-                                background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                                boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)',
-                                '&:hover': { boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.4)' }
-                            }}
-                        >
-                            Book Now
-                        </Button>
-                    </Box>
+                        </Box>
+
+                        <CardContent sx={{ flexGrow: 1, p: 2, pt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ p: 1, borderRadius: '50%', bgcolor: '#f1f5f9', display: 'flex' }}>
+                                    <Person sx={{ fontSize: 20, color: '#64748b' }}/>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">CAPACITY</Typography>
+                                    <Typography variant="body2" fontWeight="700" color="#334155">{room.capacity} People</Typography>
+                                </Box>
+                           </Box>
+                           {/* Rating หรือ Feature อื่นๆ (Mockup) */}
+                           
+                        </CardContent>
+                        
+                        {/* ปุ่มจอง ลอยขึ้นมาเมื่อ Hover */}
+                        <Box sx={{ p: 2, pt: 0, display: 'flex', justifyContent: 'center' }}>
+                            <Button 
+                                className="book-btn"
+                                fullWidth 
+                                variant="contained" 
+                                onClick={() => { setSelectedRoom(room); setIsModalOpen(true); }} 
+                                sx={{ 
+                                    borderRadius: '50px', 
+                                    py: 1.5, 
+                                    textTransform: 'none', 
+                                    fontWeight: '700', 
+                                    fontSize: '1rem',
+                                    background: 'linear-gradient(135deg, #4f46e5 0%, #8b5cf6 100%)', // Gradient ม่วง-น้ำเงิน
+                                    boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+                                    transition: 'all 0.3s ease',
+                                    width: '100%', // ปกติเต็ม
+                                    '&:hover': { 
+                                        background: 'linear-gradient(135deg, #4338ca 0%, #7c3aed 100%)',
+                                        boxShadow: '0 8px 25px rgba(99, 102, 241, 0.6)',
+                                        transform: 'scale(1.05)'
+                                    }
+                                }}
+                            >
+                                Book This Space
+                            </Button>
+                        </Box>
                     </Card>
                 </Grid>
             </Grow>
@@ -265,32 +310,50 @@ const RoomList = () => {
 
   const renderDashboard = () => (
     <Box>
+       {/* ✨ Header Banner แบบใหม่ */}
        <Paper 
         elevation={0}
         sx={{ 
-            p: { xs: 3, md: 5 }, mb: 5, borderRadius: 5, 
-            background: 'linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.7)), url(https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80)',
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            color: 'white', position: 'relative', overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+            p: { xs: 3, md: 6 }, mb: 5, borderRadius: '32px', 
+            background: 'linear-gradient(120deg, #1e293b 0%, #0f172a 100%)',
+            position: 'relative', overflow: 'hidden',
+            boxShadow: '0 20px 40px -10px rgba(15, 23, 42, 0.3)',
+            border: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 800 }}>
-            <Typography variant="h3" fontWeight="900" gutterBottom sx={{ letterSpacing: '-1px' }}>
-                Find Your Perfect Space 🏢
+          {/* Abstract Pattern พื้นหลัง */}
+          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 300, height: 300, background: 'radial-gradient(circle, rgba(99,102,241,0.4) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(40px)' }} />
+          <Box sx={{ position: 'absolute', bottom: -50, left: 100, width: 250, height: 250, background: 'radial-gradient(circle, rgba(236,72,153,0.3) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(40px)' }} />
+
+          <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+            <Typography variant="h2" fontWeight="900" sx={{ 
+                background: 'linear-gradient(to right, #fff, #cbd5e1)', 
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                letterSpacing: '-1.5px', mb: 1
+            }}>
+                Find Your Flow 🌊
             </Typography>
-            <Typography variant="h6" sx={{opacity:0.9, mb:4, fontWeight: 300}}>
-                Easy and fast online meeting room booking with full facilities.
+            <Typography variant="h6" sx={{ color: '#94a3b8', mb: 5, fontWeight: 400, maxWidth: 600, mx: 'auto' }}>
+                Discover the perfect space for your next meeting, brainstorming session, or quiet work time.
             </Typography>
             
-            <Paper elevation={4} sx={{ p: 1, display: 'flex', alignItems: 'center', borderRadius: 4, width: '100%', maxWidth: 700 }}>
-                 <IconButton sx={{ p: '10px' }} aria-label="search"><Search color="primary" /></IconButton>
+            <Paper 
+                elevation={10} 
+                sx={{ 
+                    p: 1, display: 'flex', alignItems: 'center', borderRadius: '50px', 
+                    width: '100%', maxWidth: 600, mx: 'auto',
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    border: '4px solid rgba(255,255,255,0.2)'
+                }}
+            >
+                 <IconButton sx={{ p: '12px', ml: 1 }} aria-label="search"><Search color="primary" /></IconButton>
                  <TextField 
                     fullWidth 
-                    placeholder="Search for rooms or locations..." 
+                    placeholder="Search rooms..." 
                     variant="standard" 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)} 
-                    InputProps={{ disableUnderline: true, sx: { fontSize: '1.1rem' } }} 
+                    InputProps={{ disableUnderline: true, sx: { fontSize: '1rem', fontWeight: 500 } }} 
                 />
                 <Divider sx={{ height: 28, m: 0.5 }} orientation="vertical" />
                 <FormControl variant="standard" sx={{ m: 1, minWidth: 120 }}>
@@ -299,22 +362,21 @@ const RoomList = () => {
                         value={capacityFilter} 
                         onChange={(e) => setCapacityFilter(e.target.value as number)} 
                         displayEmpty
-                        sx={{ fontWeight: 'bold', color: '#475569' }}
+                        sx={{ fontWeight: '700', color: '#475569', fontSize: '0.9rem', textAlign: 'center' }}
                     >
-                        <MenuItem value="">All (Capacity)</MenuItem><MenuItem value={4}>4+ ppl</MenuItem><MenuItem value={10}>10+ ppl</MenuItem><MenuItem value={20}>20+ ppl</MenuItem>
+                        <MenuItem value="">Any Size</MenuItem><MenuItem value={4}>Small (4+)</MenuItem><MenuItem value={10}>Medium (10+)</MenuItem><MenuItem value={20}>Large (20+)</MenuItem>
                     </Select>
                 </FormControl>
             </Paper>
           </Box>
        </Paper>
 
-       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Tabs value={dashboardTab} onChange={(_, v) => setDashboardTab(v)} textColor="primary" indicatorColor="primary">
-             <Tab icon={<GridView />} label="Room List" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
-             <Tab icon={<CalendarMonth />} label="Booking Calendar" iconPosition="start" sx={{ fontWeight: 'bold', fontSize: '1rem', textTransform: 'none' }} />
+       <Box sx={{ borderBottom: 1, borderColor: 'rgba(0,0,0,0.05)', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          <Tabs value={dashboardTab} onChange={(_, v) => setDashboardTab(v)} textColor="primary" indicatorColor="primary" sx={{ '& .MuiTab-root': { fontSize: '1rem', fontWeight: 700, borderRadius: 2 } }}>
+             <Tab icon={<GridView />} label="All Rooms" iconPosition="start" />
+             <Tab icon={<CalendarMonth />} label="Availability Calendar" iconPosition="start" />
           </Tabs>
 
-          {/* Filter Dropdown for Calendar */}
           {dashboardTab === 1 && (
              <FormControl sx={{ minWidth: 250, mr: 2 }} size="small">
                 <InputLabel id="calendar-room-filter-label">Filter by Rooms</InputLabel>
@@ -326,12 +388,12 @@ const RoomList = () => {
                     const { value } = e.target;
                     setCalendarRoomFilter(typeof value === 'string' ? value.split(',').map(Number) : value as number[]);
                   }}
-                  input={<OutlinedInput label="Filter by Rooms" />}
+                  input={<OutlinedInput label="Filter by Rooms" sx={{borderRadius: 3}} />}
                   renderValue={(selected) => {
                       if (selected.length === 0) return "All Rooms";
                       return rooms.filter(r => selected.includes(r.id)).map(r => r.name).join(', ');
                   }}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300, borderRadius: 3 } } }}
                 >
                   <MenuItem disabled value="">
                     <em>Select Rooms to View</em>
@@ -348,17 +410,17 @@ const RoomList = () => {
        </Box>
 
        {dashboardTab === 0 ? renderRoomGrid() : (
-         <Paper sx={{ p: 3, borderRadius: 4, height: 650, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+         <Paper sx={{ p: 3, borderRadius: '24px', height: 650, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
             <Calendar 
                 localizer={localizer} 
                 events={getVisibleCalendarEvents()} 
                 startAccessor="start" 
                 endAccessor="end" 
-                style={{ height: '100%', fontFamily: 'Inter' }} 
+                style={{ height: '100%', fontFamily: 'Plus Jakarta Sans' }} 
                 eventPropGetter={(event) => ({
                     style: { 
                         backgroundColor: event.resource === 'approved' ? '#10b981' : event.resource === 'pending' ? '#f59e0b' : '#64748b',
-                        borderRadius: '6px', border: 'none'
+                        borderRadius: '8px', border: 'none', fontWeight: 600, fontSize: '0.85rem'
                     }
                 })}
             />
@@ -384,7 +446,7 @@ const RoomList = () => {
 
           <Box sx={{ flexGrow: 0, ml: 1 }}>
             <Tooltip title="Account settings">
-              <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0.5, border: '2px solid #e2e8f0', borderRadius: '50%' }}>
+              <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0.5, border: '2px solid #e2e8f0', borderRadius: '50%', bgcolor: 'white' }}>
                 <Avatar src={userProfile?.profile_picture} sx={{ width: 40, height: 40 }}>{userProfile?.first_name?.[0]}</Avatar>
               </IconButton>
             </Tooltip>
@@ -414,7 +476,8 @@ const RoomList = () => {
             '& .MuiDrawer-paper': { 
                 width: drawerWidth, boxSizing: 'border-box', borderRight: 'none', 
                 boxShadow: '4px 0 24px rgba(0,0,0,0.02)',
-                backgroundColor: '#ffffff'
+                backgroundColor: 'rgba(255,255,255,0.8)', // Glassmorphism Drawer
+                backdropFilter: 'blur(10px)'
             } 
         }} 
         variant="persistent" anchor="left" open={open}
@@ -446,7 +509,7 @@ const RoomList = () => {
           ) : (
             currentView === 'dashboard' ? renderDashboard() : (
               <Fade in={true}>
-              <Paper sx={{ p: 4, borderRadius: 5, boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: 600 }}>
+              <Paper sx={{ p: 4, borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', minHeight: 600, border: '1px solid #f1f5f9' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#e0e7ff', color: '#4338ca', width: 56, height: 56 }}><History fontSize="large"/></Avatar>
                     <Box>
@@ -511,6 +574,14 @@ const RoomList = () => {
             )
           )}
         </Container>
+
+        {userProfile && (
+            <ChatWidget 
+                userId={userProfile.id} 
+                role={userProfile.role || 'user'} 
+            />
+        )}
+
       </Main>
 
       <BookingModal open={isModalOpen} handleClose={() => setIsModalOpen(false)} room={selectedRoom} onSuccess={() => { fetchData(); Swal.fire('Success!', 'Booking request sent successfully.', 'success'); }} />
