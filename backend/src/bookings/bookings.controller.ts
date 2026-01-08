@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto'; // ✅ Import เพิ่ม
 import { BookingStatus } from '../entities/booking.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,7 +18,6 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto, req.user.userId);
   }
 
-  // ✅ เอา @Roles(UserRole.ADMIN) ออก เพื่อให้ทุกคนดึงข้อมูลไปโชว์ในปฏิทินได้
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 10) {
@@ -28,6 +28,14 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   findMyBookings(@Request() req) {
     return this.bookingsService.findMyBookings(req.user.userId);
+  }
+
+  // ✅ เพิ่ม Endpoint นี้สำหรับแก้ไขข้อมูลการจอง (เฉพาะ Admin)
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  update(@Param('id') id: string, @Body() updateBookingDto: UpdateBookingDto) {
+    return this.bookingsService.update(+id, updateBookingDto);
   }
 
   @Patch(':id/status')

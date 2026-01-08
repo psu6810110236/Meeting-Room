@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto'; // ✅ Import เพิ่ม
 import { InjectRepository } from '@nestjs/typeorm';
 import { Booking, BookingStatus } from '../entities/booking.entity';
 import { MeetingRoom } from '../entities/meeting-room.entity';
 import { Facility } from '../entities/facility.entity';
 import { BookingFacility } from './entities/booking-facility.entity';
-import { Repository, DataSource, LessThan, Between, Not, MoreThan } from 'typeorm'; // ✅ เพิ่ม Import
+import { Repository, DataSource, LessThan, Between, Not, MoreThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -34,13 +35,11 @@ export class BookingsService {
 
     if (start >= end) throw new BadRequestException('Start time must be before end time.');
 
-    // Rule: Limit 3 approved bookings per user
     const approvedCount = await this.bookingRepository.count({
       where: { user: { id: userId }, status: BookingStatus.APPROVED }
     });
     if (approvedCount >= 3) throw new BadRequestException('You have reached the limit of 3 approved bookings.');
 
-    // ✅ Rule: Check SELF-overlap (ป้องกันตัวเองจองชนตัวเอง)
     const overlappingUser = await this.bookingRepository.createQueryBuilder('booking')
       .where('booking.user = :userId', { userId })
       .andWhere('booking.status IN (:...statuses)', { statuses: [BookingStatus.APPROVED, BookingStatus.PENDING] })
@@ -52,7 +51,6 @@ export class BookingsService {
         throw new BadRequestException('You already have a booking during this time.');
     }
 
-    // Check Room Availability
     const room = await this.roomRepository.findOne({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Meeting room not found.');
 
@@ -67,7 +65,7 @@ export class BookingsService {
         start_time: start,
         end_time: end,
         purpose,
-        status: BookingStatus.PENDING, // สร้างเป็น Pending เสมอ รอ Admin อนุมัติ
+        status: BookingStatus.PENDING,
       });
       const savedBooking = await queryRunner.manager.save(booking);
 
@@ -85,10 +83,7 @@ export class BookingsService {
         }
       }
       await queryRunner.commitTransaction();
-
       this.logger.log(`Booking created by User ID ${userId}`);
-      //await this.notificationsService.create(userId, `Booking request submitted for ${room.name}`, 'info');
-
       return savedBooking;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -98,7 +93,23 @@ export class BookingsService {
     }
   }
 
-  // ✅ Pagination Support
+  // ✅ ฟังก์ชัน Update Booking (แก้ไขรายละเอียด)
+  async update(id: number, updateBookingDto: UpdateBookingDto) {
+    const booking = await this.bookingRepository.findOne({ where: { id } });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const { purpose, startTime, endTime, roomId } = updateBookingDto;
+
+    // อัปเดตฟิลด์พื้นฐาน
+    if (purpose) booking.purpose = purpose;
+    if (startTime) booking.start_time = new Date(startTime);
+    if (endTime) booking.end_time = new Date(endTime);
+    if (roomId) booking.room = { id: roomId } as any;
+
+    // บันทึกการแก้ไข
+    return this.bookingRepository.save(booking);
+  }
+
   async findAll(page: number = 1, limit: number = 10) {
     const [data, total] = await this.bookingRepository.findAndCount({
       relations: ['user', 'room', 'booking_facilities', 'booking_facilities.facility'],
@@ -113,12 +124,10 @@ export class BookingsService {
     };
   }
 
-  // ✅ Cron Jobs
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCronJobs() {
     const now = new Date();
 
-    // 1. Auto-Cancel Expired Pending
     const expired = await this.bookingRepository.find({ 
       where: { status: BookingStatus.PENDING, start_time: LessThan(now) }, 
       relations: ['user'] 
@@ -130,7 +139,6 @@ export class BookingsService {
       this.logger.warn(`Auto-cancelled booking #${b.id}`);
     }
 
-    // 2. Auto-Complete Finished Bookings
     const finished = await this.bookingRepository.find({ 
       where: { status: BookingStatus.APPROVED, end_time: LessThan(now) }, 
       relations: ['user'] 
@@ -145,7 +153,6 @@ export class BookingsService {
         }
     }
 
-    // 3. Reminder (15 mins before)
     const fifteenMinsLater = new Date(now.getTime() + 15 * 60000);
     const reminderBookings = await this.bookingRepository.find({
         where: { 
@@ -164,7 +171,6 @@ export class BookingsService {
     }
   }
 
-  // Update Status
   async updateStatus(id: number, status: BookingStatus) {
     const booking = await this.bookingRepository.findOne({ 
       where: { id },
@@ -180,7 +186,6 @@ export class BookingsService {
 
     try {
       if (status === BookingStatus.APPROVED) {
-        // ✅ 1. แก้ไข: เปิดการเช็ค Overlap เพื่อไม่ให้ Approve ซ้อนกัน
         const overlap = await queryRunner.manager.findOne(Booking, {
             where: {
                 room: { id: booking.room.id },
@@ -240,9 +245,7 @@ export class BookingsService {
       booking.status = BookingStatus.COMPLETED; 
       await queryRunner.manager.save(Booking, booking);
       await queryRunner.commitTransaction();
-
       await this.notificationsService.create(booking.user.id, `Items returned for Booking #${id}. Status Completed.`, 'success');
-
       return { message: 'Items returned and stock updated successfully.' };
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -279,7 +282,6 @@ export class BookingsService {
       booking.status = BookingStatus.CANCELLED;
       await queryRunner.manager.save(Booking, booking);
       await queryRunner.commitTransaction();
-
       return { message: 'Booking cancelled successfully.' };
     } catch (err) {
       await queryRunner.rollbackTransaction();
