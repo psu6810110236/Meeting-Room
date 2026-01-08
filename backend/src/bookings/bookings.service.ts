@@ -87,7 +87,7 @@ export class BookingsService {
       await queryRunner.commitTransaction();
 
       this.logger.log(`Booking created by User ID ${userId}`);
-      await this.notificationsService.create(userId, `Booking request submitted for ${room.name}`, 'info');
+      //await this.notificationsService.create(userId, `Booking request submitted for ${room.name}`, 'info');
 
       return savedBooking;
     } catch (err) {
